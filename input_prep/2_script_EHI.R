@@ -71,7 +71,7 @@ plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
 best_index <- which.min(rmse)
-best_k <- ks[best_index] #12 es la mejor k con 0.2 missing values  
+best_k <- ks[best_index] #6 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)
@@ -81,11 +81,11 @@ all_items_cor <- cor(all_ehi_imputed[,2:13], use= "complete.obs")
 
 jpeg("../EHI_items_correlation.jpeg")
 pheatmap(ehi_items_corr, 
-         display_numbers = TRUE,       # Mostrar los valores de correlación
-         number_format = "%.2f",       # Formato con 2 decimales
-         number_color = "black",       # Color de los números
-         fontsize_number = 10,         # Tamaño de los números
-         color = colorRampPalette(c("white", "lightyellow", "lightsalmon"))(100), 
+         display_numbers = TRUE,       
+         number_format = "%.2f",       
+         number_color = "black",       
+         fontsize_number = 10,         
+         color = colorRampPalette(c("white", "lightyellow", "lightsalmon"))(50), 
          main = "EHI items correlation",
          border_color = "white",       
          treeheight_row = 30,          
