@@ -4,6 +4,7 @@ library(effsize)
 library(psych)
 library(psychTools)
 library(ggplot2)
+library(forcats)
 library(mvtnorm)
 library(class)
 library(VIM)
@@ -11,9 +12,9 @@ library(pheatmap)
 
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
-
-casesF <- "cases_EHI_300426_CHECKED_DIAGNOSTICS.xlsx"
-controlsF <- "controls_EHI_300426_DIAGNOSTICSUNIFORM.xlsx"
+rm(list = ls())
+casesF <- "cases_EHI_070526.xlsx"
+controlsF <- "controls_clean_EHI_070526.xlsx"
 
 cases <- as.data.frame(readxl::read_xlsx(casesF, sheet = 1, 
                                               col_types="text", na="#N/A"))%>%
@@ -70,12 +71,15 @@ plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
 best_index <- which.min(rmse)
-best_k <- ks[best_index] #4 es la mejor k con 0.2 missing values  
+best_k <- ks[best_index] #12 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)
 
 ehi_items_corr <- cor(all_ehi_imputed[,2:11], use = "complete.obs")
+all_items_cor <- cor(all_ehi_imputed[,2:13], use= "complete.obs")
+
+jpeg("../EHI_items_correlation.jpeg")
 pheatmap(ehi_items_corr, 
          display_numbers = TRUE,       # Mostrar los valores de correlación
          number_format = "%.2f",       # Formato con 2 decimales
@@ -87,6 +91,21 @@ pheatmap(ehi_items_corr,
          treeheight_row = 30,          
          treeheight_col = 30          
 )
+dev.off()
+
+jpeg("../all_items_correlation.jpeg")
+pheatmap(all_items_cor, 
+         display_numbers = TRUE,       
+         number_format = "%.2f",       
+         number_color = "black",       
+         fontsize_number = 10,         
+         color = colorRampPalette(c("white", "lightyellow", "lightsalmon"))(100), 
+         main = "EHI items correlation",
+         border_color = "white",       
+         treeheight_row = 30,          
+         treeheight_col = 30
+)
+dev.off()
 
 calculate_LQ_EHI <- function(df){
   df_temp <- df %>%
@@ -94,8 +113,8 @@ calculate_LQ_EHI <- function(df){
       Right10 = rowSums(
         across(Item1:Item10, ~ case_when(
           . == 1 ~ 2,
-          . %in% c(2) ~ 1,
-          . %in% c(3,4, 5) ~ 0,
+          . %in% c(2,3) ~ 1,
+          . %in% c(4, 5) ~ 0,
           TRUE ~ NA_real_
         )),
         na.rm = TRUE
@@ -105,8 +124,8 @@ calculate_LQ_EHI <- function(df){
       Left10 = rowSums(
         across(Item1:Item10, ~ case_when(
           . == 5 ~ 2,
-          . %in% c(4) ~ 1,
-          . %in% c(1,2,3) ~ 0,
+          . %in% c(4,3) ~ 1,
+          . %in% c(1,2) ~ 0,
           TRUE ~ NA_real_
         )),
         na.rm = TRUE
@@ -119,14 +138,118 @@ calculate_LQ_EHI <- function(df){
 }
 
 all_samples <- rbind(cases, controls)%>%
-  distinct(ID, .keep_all = TRUE)
+  distinct(ID, .keep_all = TRUE)%>%
+  mutate(BD_patient = BD_patient %>% 
+           fct_recode("YES" = "SI") %>% 
+           fct_relevel("NO"))
 
 all_LQ <- calculate_LQ_EHI(all_ehi_imputed)%>%
-  left_join(all_samples %>% select(ID, BD_patient), by = "ID")
+  left_join(all_samples %>% select(ID, Sex, Age, BD_patient, Diagnostic), by = "ID")%>%
+  mutate(Age = as.numeric(Age),
+         Sex = factor(
+           if_else(Sex == "HOMBRE", "HOMBRE",
+                   if_else(Sex == "MUJER", "MUJER", NA_character_)),
+           levels = c("HOMBRE", "MUJER")),
+         Diagnostic = factor(Diagnostic)
+         )%>%
+  mutate(
+    Age = if_else(Age < 10 | Age > 1000, NA_real_, Age)
+  )
+writexl::write_xlsx(all_LQ, path= "all_samples_all_data_LQ.xlsx")
+
+import_df <- all_LQ%>%
+  left_join(all_ehi_imputed, by ="ID")
+writexl::write_xlsx(import_df, path= "all_samples_all_data_LQ_PLUS_items.xlsx")
 
 
-cases_LQ <- calculate_LQ_EHI(ehi_cases)
-controls_LQ <- calculate_LQ_EHI(ehi_controls)
+ehi_items_to_LQ <- cor(import_df[,c(2,7:16)], use = "complete.obs")
+ehi_items_to_LQ[, 1] <- ehi_items_to_LQ[, 1] * -1
+ehi_items_to_LQ[1, ] <- ehi_items_to_LQ[1, ] * -1
+
+new_colors <- colorRampPalette(c("slateblue2", "lightyellow", "lightsalmon"))(100)
+new_breaks <- seq(0, 1, length.out = 101)
+
+jpeg("../LQ_to_EHI_items_correlation.jpeg")
+pheatmap(ehi_items_to_LQ, 
+         display_numbers = TRUE,       
+         number_format = "%.2f",       
+         number_color = "black",       
+         fontsize_number = 10,         
+         color = new_colors, 
+         breaks = new_breaks,
+         main = "EHI items correlation",
+         border_color = "white",       
+         treeheight_row = 30,          
+         treeheight_col = 30
+)
+dev.off()
+
+other_items_to_LQ <- cor(import_df[,c(2,17,18)], use = "complete.obs")
+other_items_to_LQ[, 1] <- other_items_to_LQ[, 1] * -1
+other_items_to_LQ[1, ] <- other_items_to_LQ[1, ] * -1
+jpeg("../LQ_to_eye_foot_items_correlation.jpeg")
+pheatmap(other_items_to_LQ, 
+         display_numbers = TRUE,       
+         number_format = "%.2f",       
+         number_color = "black",       
+         fontsize_number = 10,         
+         color = new_colors, 
+         breaks = new_breaks,
+         main = "EHI items correlation",
+         border_color = "white",       
+         treeheight_row = 30,          
+         treeheight_col = 30
+)
+dev.off()
+
+#Correlacion entre LQ y sex, age, y BD patient
+association_matrix <- function(df) {
+  vars <- names(df)
+  n <- length(vars)
+  mat <- matrix(NA, n, n, dimnames = list(vars, vars))
+  
+  for (i in seq_len(n)) {
+    for (j in seq_len(n)) {
+      x <- df[[i]]
+      y <- df[[j]]
+      
+      # Ambos numéricos → correlación de Pearson
+      if (is.numeric(x) && is.numeric(y)) {
+        mat[i,j] <- cor(x, y, use = "pairwise.complete.obs", method = "pearson")
+        
+        # Uno numérico y otro factor → R² de un modelo lineal
+      } else if (is.numeric(x) && is.factor(y)) {
+        model <- lm(x ~ y)
+        mat[i,j] <- summary(model)$r.squared
+      } else if (is.factor(x) && is.numeric(y)) {
+        model <- lm(y ~ x)
+        mat[i,j] <- summary(model)$r.squared
+        
+        # Ambos factores → Cramér’s V
+      } else if (is.factor(x) && is.factor(y)) {
+        x <- droplevels(x)
+        y <- droplevels(y)
+        tbl <- table(x, y)
+        mat[i,j] <- vcd::assocstats(tbl)$cramer
+      }
+    }
+  }
+  return(mat)
+}
+
+M <- association_matrix(all_LQ[,2:6])
+cols <- RColorBrewer::brewer.pal(n =9, name = "YlGnBu")
+
+png(filename="../Correlation_LQ_SEX_AGE_BD.png")
+pheatmap(M*100,
+         display_numbers = T,
+         cluster_rows = F, cluster_cols = F, fontsize_number = 12,
+         color = cols[1:6], angle_col = 315,
+         title = "Correlation (%)")
+dev.off()
+
+
+
 
 #All LQ scores
 ggplot(all_LQ, aes(x = Score10items)) +
@@ -176,7 +299,8 @@ ggplot(all_LQ, aes(x = Score10items, fill = BD_patient)) +
     vjust = -0.5,
     size = 3
   ) +
-  scale_x_continuous(breaks = seq(-100, 100, 10)) +scale_fill_manual(values = c("NO" = "lightsalmon", "YES" = "slateblue2")) +
+  scale_x_continuous(breaks = seq(-100, 100, 10)) +
+  scale_fill_manual(values = c("NO" = "lightsalmon", "YES" = "slateblue2")) +
   labs(
     title = "LQ distribution by BD-nonBD",
     x = "Score",
@@ -184,192 +308,4 @@ ggplot(all_LQ, aes(x = Score10items, fill = BD_patient)) +
     fill = "BD_patient"
   ) +
   theme_minimal()
-
-
-
-
-#Variables categoricas segun umbrales
-data_cases <- data_cases %>%
-  mutate(
-    Score10_binary = cut(
-      Score10items,
-      breaks = c(-101, 0, 101),
-      labels = c("Left", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_binary = cut(
-      Score12items,
-      breaks = c(-101, 0, 101),
-      labels = c("Left", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr50 = cut(
-      Score10items,
-      breaks = c(-101, -50, 50, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr50 = cut(
-      Score12items,
-      breaks = c(-101, -50, 50, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr60 = cut(
-      Score10items,
-      breaks = c(-101, -60, 60, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr60 = cut(
-      Score12items,
-      breaks = c(-101, -60, 60, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr40 = cut(
-      Score10items,
-      breaks = c(-101, -40, 40, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr40 = cut(
-      Score12items,
-      breaks = c(-101, -40, 40, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    )
-  )
-
-#Setting up controls
-data_controls <- data_controls %>%
-  mutate(
-    Right10 = rowSums(
-      across(Item1:Item10, ~ case_when(
-        . == 1 ~ 2,
-        . %in% c(2, 3) ~ 1,
-        . %in% c(4, 5) ~ 0,
-        TRUE ~ NA_real_
-      )),
-      na.rm = TRUE
-    )
-  ) %>%
-  mutate(
-    Left10 = rowSums(
-      across(Item1:Item10, ~ case_when(
-        . == 5 ~ 2,
-        . %in% c(4,3) ~ 1,
-        . %in% c(1,2) ~ 0,
-        TRUE ~ NA_real_
-      )),
-      na.rm = TRUE
-    )
-  ) %>%
-  mutate(
-    Score10items = round(((Right10 - Left10) / (Right10 + Left10) *100),0)
-  )%>%
-  mutate(
-    Right12 = rowSums(
-      across(Item1:Item12, ~ case_when(
-        . == 1 ~ 2,
-        . %in% c(2, 3) ~ 1,
-        . %in% c(4, 5) ~ 0,
-        TRUE ~ NA_real_
-      )),
-      na.rm = TRUE
-    )
-  ) %>%
-  mutate(
-    Left12 = rowSums(
-      across(Item1:Item12, ~ case_when(
-        . == 5 ~ 2,
-        . %in% c(4,3) ~ 1,
-        . %in% c(1,2) ~ 0,
-        TRUE ~ NA_real_
-      )),
-      na.rm = TRUE
-    )
-  ) %>%
-  mutate(
-    Score12items = round(((Right12 - Left12) / (Right12 + Left12) *100),0)
-  )
-#Density plot of scores
-ggplot(data_controls) +
-  geom_density(aes(x = Score10items), color = "lightblue", fill = "lightblue", alpha = 0.9) +
-  geom_density(aes(x = Score12items), color = "coral", fill = "coral", alpha = 0.3) +
-  labs(
-    title = "EHI in 10 items or 12 items",
-    x = "Score",
-    y = "Density"
-  ) +
-  theme_minimal()
-
-#Variables categoricas segun umbrales
-data_controls <- data_controls %>%
-  mutate(
-    Score10_binary = cut(
-      Score10items,
-      breaks = c(-101, 0, 101),
-      labels = c("Left", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_binary = cut(
-      Score12items,
-      breaks = c(-101, 0, 101),
-      labels = c("Left", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr50 = cut(
-      Score10items,
-      breaks = c(-101, -50, 50, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr50 = cut(
-      Score12items,
-      breaks = c(-101, -50, 50, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr60 = cut(
-      Score10items,
-      breaks = c(-101, -60, 60, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr60 = cut(
-      Score12items,
-      breaks = c(-101, -60, 60, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score10_thr40 = cut(
-      Score10items,
-      breaks = c(-101, -40, 40, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    ),
-    Score12_thr40 = cut(
-      Score12items,
-      breaks = c(-101, -40, 40, 101),
-      labels = c("Left", "Ambidextrous", "Right"),
-      right = TRUE,
-      include.lowest = TRUE
-    )
-  )
 

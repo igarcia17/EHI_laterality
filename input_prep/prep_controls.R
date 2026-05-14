@@ -9,6 +9,7 @@ library(openxlsx)
 
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
+rm(list = ls())
 
 controlsF <- "datos_cuestionarios_UAM-CSIC_16_10_2025.xlsx"
 
@@ -46,22 +47,31 @@ controls <- ControlsCBMSO%>%
   filter(!str_detect(`Detalles diagnóstico`, "BIPOLAR|TB|TAB|BD|BIPOILAR|ESQUIZOAFECTIVO"))%>%
   filter(!str_detect(`Detalles diagnóstico`, "AUTISMO|OBSESIVO|AUTISTA|ESQUIZOF|PERSONALIDAD|TEA|TLP|GRAVE|PSICOT|MAYOR|BOURCAUT"))%>%
   distinct(ID, .keep_all = TRUE)
+controls_clean <- ControlsCBMSO%>%
+  filter(`Diagnóstico psiquiátrico propio` == "NO")%>%
+  filter(`Detalles diagnóstico`=="NO")%>%
+  distinct(ID, .keep_all = TRUE)
 
 edi_sheet <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 7, 
-                                             col_types="text", na="#N/A"))%>%
+                                             col_types="text", na="#N/A"))[,1:14]%>%
   mutate(ID = paste0(
     str_sub(ID, 1, 3), "_",
-    str_pad(str_extract(ID, "\\d+"), width = 4, pad = "0")
-  ))
+    str_pad(str_extract(ID, "\\d+"), width = 4, pad = "0"))) %>%
+  filter(rowSums(is.na(.)) <= 6) #Eliminate rows with less than 6 items filled in
 
 ehi_cases <- edi_sheet %>%
   filter(ID %in% cases$ID)
 ehi_controls <- edi_sheet %>%
   filter(ID %in% controls$ID)%>%
   distinct(ID, .keep_all = TRUE)
+ehi_controls_clean <- edi_sheet%>%
+  filter(ID %in% controls_clean$ID)%>%
+  distinct(ID, .keep_all = TRUE)
 
-controls <- controls%>%
-  filter(ID %in% ehi_controls$ID)
+cases <- cases %>% filter(ID %in%ehi_cases$ID)
+controls <- controls%>%filter(ID %in% ehi_controls$ID)
+controls_clean<- controls_clean %>% filter(ID %in% ehi_controls_clean$ID)
+
 
 ###Load MadManic data
 
@@ -91,6 +101,7 @@ colnames(meta_cases) <- meta_cols
 colnames(cases) <- meta_cols
 colnames(controls) <- meta_cols
 controls$BD_patient <- "NO"
+colnames(controls_clean)<- meta_cols
 
 Cases_all <- rbind(meta_cases, cases)
 colnames(ehi_cases)<- c(colnames(data_cases), "Total")
@@ -103,7 +114,7 @@ addWorksheet(wb, "meta_controls")
 writeData(wb, "meta_controls", controls)
 addWorksheet(wb, "EHI_controls")
 writeData(wb, "EHI_controls", ehi_controls)
-saveWorkbook(wb, "controls_EHI_300426.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_EHI_070526.xlsx", overwrite = TRUE)
 
 #SAVE an EXCEL file for cases
 wb <- createWorkbook()
@@ -111,8 +122,15 @@ addWorksheet(wb, "meta_cases")
 writeData(wb, "meta_cases", Cases_all)
 addWorksheet(wb, "EHI_cases")
 writeData(wb, "EHI_cases", Cases_all_ehi)
-saveWorkbook(wb, "cases_EHI_300426.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "cases_EHI_070526.xlsx", overwrite = TRUE)
 
+###SAVE an EXCEL file for clean controls
+wb <- createWorkbook()
+addWorksheet(wb, "meta_controls_clean")
+writeData(wb, "meta_controls_clean", controls_clean)
+addWorksheet(wb, "EHI_controls_clean")
+writeData(wb, "EHI_controls_clean", ehi_controls_clean)
+saveWorkbook(wb, "controls_clean_EHI_070526.xlsx", overwrite = TRUE)
 
-
+###Please manually assess Diagnostic uniformity and that everything is OK
 
