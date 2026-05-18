@@ -1,0 +1,27 @@
+PLINK v1.9.0-b.7.7 64-bit (22 Oct 2024)
+Options in effect:
+  --bfile ../../PRScx/ALL_5374_bfile
+  --keep all_indivs.list
+  --out PGS_ambidext_all_EHI
+  --score ambidextrousness_posterior_all_Chr.txt 2 4 6 sum
+
+Hostname: ines-laptop-ubuntu
+Working directory: /home/ines/Desktop/EHI_laterality/PRS
+Start time: Fri May 15 15:08:45 2026
+
+Random number seed: 1778850525
+15685 MB RAM detected; reserving 7842 MB for main workspace.
+2991210 variants loaded from .bim file.
+5374 people (2660 males, 2714 females) loaded from .fam.
+5374 phenotype values loaded from .fam.
+--keep: 1126 people remaining.
+Using 1 thread (no multithreaded calculations invoked).
+Before main variant filters, 1126 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate in remaining samples is 0.996856.
+2991210 variants and 1126 people pass filters and QC.
+Among remaining phenotypes, 347 are cases and 779 are controls.
+--score: 539922 valid predictors loaded.
+--score: Results written to PGS_ambidext_all_EHI.profile .
+
+End time: Fri May 15 15:08:50 2026
