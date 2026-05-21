@@ -3,13 +3,13 @@ Options in effect:
   --bfile ../../PRScx/ALL_5374_bfile
   --keep all_indivs.list
   --out PGS_SCZ_all_EHI
-  --score ../../PRScx/SCZ_posterior_allChr.txt 2 4 6 sum
+  --score ../../PRScx/SCZ_posterior_allChr.txt 2 4 6
 
 Hostname: ines-laptop-ubuntu
 Working directory: /home/ines/Desktop/EHI_laterality/Part3_PRS
-Start time: Fri May 15 16:13:28 2026
+Start time: Thu May 21 11:20:33 2026
 
-Random number seed: 1778858008
+Random number seed: 1779358833
 15685 MB RAM detected; reserving 7842 MB for main workspace.
 2991210 variants loaded from .bim file.
 5374 people (2660 males, 2714 females) loaded from .fam.
@@ -24,4 +24,4 @@ Among remaining phenotypes, 347 are cases and 779 are controls.
 --score: 539949 valid predictors loaded.
 --score: Results written to PGS_SCZ_all_EHI.profile .
 
-End time: Fri May 15 16:13:33 2026
+End time: Thu May 21 11:20:38 2026
