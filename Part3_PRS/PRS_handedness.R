@@ -5,6 +5,7 @@ library(ggplot2)
 library(tidyr)
 library(openxlsx)
 library(forcats)
+library(pscl)
 
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
@@ -190,13 +191,17 @@ saveWorkbook(wb, "PGS_in_hand_groups_and_BD.xlsx", overwrite = TRUE)
 }
 
 #Run logistic regression
-summary(glm(Score10items ~ SEX + Age + PRS_handedness, data=df
-            #, family=binomial
-)
+m1<- glm(NRH_0 ~ SEX + Age + PRS_handedness, data=df, family=binomial)
+m_b<- glm(NRH_0 ~ SEX + Age , data=df, family=binomial)
+summary(m1)
+r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
+r2_base <- pR2(m_b)["r2CU"]
+prs_r2 <- r2_full - r2_base ###PRS r² (%) Nagelkarke
+
 
 summary(glm(Score10items ~ SEX + Age + PRS_handedness, data=df
          #, family=binomial
-         )
+         ))
 
 
 #
