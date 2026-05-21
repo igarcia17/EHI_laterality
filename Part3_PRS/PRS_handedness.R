@@ -4,28 +4,24 @@ library(tableone)
 library(ggplot2)
 library(tidyr)
 library(openxlsx)
+library(forcats)
 
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
 ########################Parameters
+cutoffs <- c("0", "40", "60", "80", "90")
 oldies <- TRUE
-variables <- c("Age","PRS_handedness","PRS_amb","PRS_BD","PRS_SCZ")
+write_count_comparisons <- FALSE
+variables <- c("PRS_handedness","PRS_amb","PRS_BD","PRS_SCZ")
 ##########Functions
 
 create_comparison_table <- function(df, Strata_var){
-  # Crear la tabla base
-  table1 <- CreateTableOne(
-    vars = c("SEX",variables), 
-    strata = Strata_var, 
-    data = df, 
-    factorVars = c("SEX"),
-    addOverall = TRUE
-  )
+  table1 <- CreateTableOne(vars = c("SEX",variables), strata = Strata_var, 
+    data = df, factorVars = c("SEX"),
+    addOverall = TRUE)
   
-  t1 <- print(table1, 
-              showAllLevels = TRUE, 
-              nonnormal = variables,
+  t1 <- print(table1, showAllLevels = TRUE, nonnormal = c("Age"), 
               formatOptions = list(big.mark = ","), pDigits=16)
   t1 <- as.data.frame(t1)
   return(t1)
@@ -35,25 +31,15 @@ create_combined_comparison_table <- function(df, var1, var2){
   # El uso de interaction() crea grupos como "Yes.Right", "No.Right", etc.
   df_temp <- df %>%
     mutate(Combined_Strata = interaction(!!sym(var1), !!sym(var2), sep = " - "))
-  
-  # 2. Crear la tabla usando la nueva variable combinada
   table1 <- CreateTableOne(
-    vars = c("SEX", variables), 
-    strata = "Combined_Strata", 
-    data = df_temp, 
-    factorVars = c("SEX"),
-    addOverall = TRUE
-  )
+    vars = c("SEX", variables), strata = "Combined_Strata", 
+    data = df_temp, factorVars = c("SEX"),addOverall = TRUE)
   
-  # 3. Formatear y exportar
   t1 <- print(table1, 
-              showAllLevels = TRUE, 
-              nonnormal = variables,
-              formatOptions = list(big.mark = ","), 
-              pDigits = 16,
-              printToggle = FALSE) # Evita que se imprima doble en la consola
-  
-  t1 <- as.data.frame(t1)
+              showAllLevels = TRUE, nonnormal = c("Age"),
+              formatOptions = list(big.mark = ","), pDigits = 16,
+              printToggle = FALSE) 
+    t1 <- as.data.frame(t1)
   return(t1)
 }
 
@@ -70,6 +56,7 @@ input <- as.data.frame(readxl::read_xlsx("All_data_available_PRS.xlsx", sheet = 
                 Cutoff60 = factor(Cutoff60),
                 Cutoff80 = factor(Cutoff80),Cutoff90 = factor(Cutoff90),
                 Age = as.numeric(Age),
+                Score10items =as.numeric(Score10items),
                 PRS_handedness= as.numeric(PRS_handedness),
                 PRS_amb = as.numeric(PRS_amb),
                 PRS_BD = as.numeric(PRS_BD),
@@ -83,22 +70,46 @@ if(oldies){
     filter(Oldies_dataset == "YES") %>% droplevels()
 }
 
+#Set up variables of interest
 df <- input%>%
-  drop_na(FID)
+  drop_na(FID)%>%
+  mutate(Score10items = as.numeric(Score10items))%>%
+  mutate(across(
+    c(Cutoff0, Cutoff40, Cutoff60, Cutoff80, Cutoff90),
+    ~ factor(.x, levels = c("RIGHT", "MIXED", "LEFT"))))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "MIXED",
+                    "NON-LATERAL",
+                    "LATERAL"),
+             levels = c("LATERAL", "NON-LATERAL")),
+    .names = "Lateral_Cutoff{str_remove(.col, 'Cutoff')}"
+  ))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "RIGHT",
+                    "RH",
+                    "NRH"),
+             levels = c("RH", "NRH")),
+    .names = "NRH_{str_remove(.col, 'Cutoff')}"
+  ))
+# Normalize PRS values
+#before
+colMeans(df[variables], na.rm = TRUE)
+apply(df[variables], 2, sd, na.rm = TRUE)
+
+df[variables] <- scale(df[variables])
+
+#after
+colMeans(df[variables], na.rm = TRUE)
+apply(df[variables], 2, sd, na.rm = TRUE)
+
+#Visualize
 
 df_long <- df %>%
-  pivot_longer(cols = starts_with("PRS"), names_to = "PRS_Type", values_to = "Value") %>%
-  group_by(PRS_Type) %>%
-  mutate(
-    # Centrar en 0 (Restar la media)
-    Value_Centered = Value - mean(Value, na.rm = TRUE),
-    # Escalar de 0 a 1: (x - min) / (max - min)
-    Value_Scaled = (Value_Centered - min(Value_Centered)) / (max(Value_Centered) - min(Value_Centered))
-  ) %>%
-  ungroup()
-
-# 2. Visualización con ggplot2
-ggplot(df_long, aes(x = Value_Scaled, fill = STATUS)) +
+  pivot_longer(cols = starts_with("PRS"), names_to = "PRS_Type", values_to = "Value") 
+# Plot of the 4 PRS in BD patients and controls
+ggplot(df_long, aes(x = Value, fill = STATUS)) +
   geom_density(alpha = 0.5) + 
   facet_wrap(~ PRS_Type, scales = "free_y", ncol = 2) + 
   scale_fill_manual(values = c("YES" = "#00BFC4", "NO" = "#F8766D")) +
@@ -109,9 +120,9 @@ ggplot(df_long, aes(x = Value_Scaled, fill = STATUS)) +
     y = "Densidad",
     fill = "BD patient"
   )
+
 ###Getting into the comparisons
-
-
+if(write_count_comparisons){
 pgs_BD <- create_comparison_table(df, "STATUS")
 pgs_hand_cut0 <- create_comparison_table(df, "Cutoff0")
 pgs_hand_cut40<- create_comparison_table(df, "Cutoff40")
@@ -175,9 +186,19 @@ writeData(wb, "Comb_cutoff80", comb_80, rowNames = TRUE)
 writeData(wb, "Comb_cutoff90", comb_90, rowNames = TRUE)
 
 
-
 saveWorkbook(wb, "PGS_in_hand_groups_and_BD.xlsx", overwrite = TRUE)
-#
+}
+
+#Run logistic regression
+summary(glm(Score10items ~ SEX + Age + PRS_handedness, data=df
+            #, family=binomial
+)
+
+summary(glm(Score10items ~ SEX + Age + PRS_handedness, data=df
+         #, family=binomial
+         )
+
+
 #
 #
 #

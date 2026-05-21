@@ -11,7 +11,7 @@ workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
 
-controlsF <- "datos_cuestionarios_UAM-CSIC_16_10_2025.xlsx"
+controlsF <- "Datos_cuestionarios_finales_para_lateralidad.xlsx"
 
 c_1 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 1, 
                                          col_types="text", na="#N/A")) %>%
@@ -107,6 +107,35 @@ Cases_all <- rbind(meta_cases, cases)
 colnames(ehi_cases)<- c(colnames(data_cases), "Total")
 Cases_all_ehi<-rbind(ehi_cases[,1:13], data_cases)
 
+#incorporar aqui los datos de referenciade diagnostico
+
+reference_diagnostic_cases <- as.data.frame(readxl::read_xlsx("REFERENCE_cases_EHI_300426_CHECKED_DIAGNOSTICS.xlsx"))
+reference_diagnostic_controls <- as.data.frame(readxl::read_xlsx("REFERENCE_controls_EHI_300426_DIAGNOSTICSUNIFORM.xlsx"))
+
+Cases_all <- Cases_all%>%
+  left_join(
+    reference_diagnostic_cases %>% select(ID, Diagnostic_new = Diagnostic), 
+    by = "ID"
+  ) %>%
+  mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
+  select(-Diagnostic_new)
+
+controls <- controls %>%
+  left_join(
+    reference_diagnostic_controls %>% select(ID, Diagnostic_new = Diagnostic), 
+    by = "ID"
+  ) %>%
+  mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
+  select(-Diagnostic_new)
+
+controls_clean <- controls_clean%>%
+  left_join(
+    reference_diagnostic_controls %>% select(ID, Diagnostic_new = Diagnostic), 
+    by = "ID"
+  ) %>%
+  mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
+  select(-Diagnostic_new)
+
 
 ###SAVE an EXCEL file for controls
 wb <- createWorkbook()
@@ -114,7 +143,7 @@ addWorksheet(wb, "meta_controls")
 writeData(wb, "meta_controls", controls)
 addWorksheet(wb, "EHI_controls")
 writeData(wb, "EHI_controls", ehi_controls)
-saveWorkbook(wb, "controls_EHI_070526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_EHI_190526.xlsx", overwrite = TRUE)
 
 #SAVE an EXCEL file for cases
 wb <- createWorkbook()
@@ -122,7 +151,7 @@ addWorksheet(wb, "meta_cases")
 writeData(wb, "meta_cases", Cases_all)
 addWorksheet(wb, "EHI_cases")
 writeData(wb, "EHI_cases", Cases_all_ehi)
-saveWorkbook(wb, "cases_EHI_070526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "cases_EHI_190526.xlsx", overwrite = TRUE)
 
 ###SAVE an EXCEL file for clean controls
 wb <- createWorkbook()
@@ -130,7 +159,7 @@ addWorksheet(wb, "meta_controls_clean")
 writeData(wb, "meta_controls_clean", controls_clean)
 addWorksheet(wb, "EHI_controls_clean")
 writeData(wb, "EHI_controls_clean", ehi_controls_clean)
-saveWorkbook(wb, "controls_clean_EHI_070526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_clean_EHI_190526.xlsx", overwrite = TRUE)
 
 ###Please manually assess Diagnostic uniformity and that everything is OK
 

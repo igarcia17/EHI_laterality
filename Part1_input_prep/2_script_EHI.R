@@ -13,8 +13,8 @@ library(pheatmap)
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
-casesF <- "cases_EHI_070526.xlsx"
-controlsF <- "controls_clean_EHI_070526.xlsx"
+casesF <- "cases_EHI_190526.xlsx"
+controlsF <- "controls_clean_EHI_190526.xlsx"
 
 cases <- as.data.frame(readxl::read_xlsx(casesF, sheet = 1, 
                                               col_types="text", na="#N/A"))%>%

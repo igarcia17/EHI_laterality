@@ -4,29 +4,15 @@ library(ggplot2)
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
-
-input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_data_LQ_PLUS_items.xlsx", sheet = 1, 
-                                         col_types="text", na="#N/A"))%>%
-  mutate(across(
-    where(~ n_distinct(., na.rm = TRUE) == 2),
-    as.factor
-  )) %>%
-  mutate(across(
-    -c(ID, Diagnostic),                    
-    ~ if (!is.factor(.)) as.numeric(.) else .
-  )) %>% mutate(Diagnostic = factor(Diagnostic))
-  
-
+###Functions
 count_by_group <- function(df, cutoff, var = NULL) {
-  
   allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
-  
   # función interna para crear grupos
   make_groups <- function(data) {
     data %>%
       mutate(
         group = case_when(
-          Score10items < -cutoff ~ "left",
+          Score10items < - cutoff ~ "left",
           Score10items >= -cutoff & Score10items <= cutoff ~ "mixed",
           Score10items > cutoff ~ "right"
         )
@@ -102,8 +88,25 @@ count_by_group <- function(df, cutoff, var = NULL) {
   bind_rows(res, lateralized) %>%
     arrange(.data[[var]], match(group, c("left", "mixed", "right", "lateralized")))
 }
+#####Load input
+input <- as.data.frame(readxl::read_xlsx("all_samples_all_data_LQ_PLUS_items_included_SCZ.xlsx", sheet = 1))%>%
+  mutate(Score10items =as.numeric(Score10items), 
+         Sex = factor(Sex),
+         BD_patient = factor(BD_patient),
+         Diagnostic = factor(Diagnostic),
+         Age = as.numeric(Age)) %>%
+  mutate(across(
+    -c(ID),                    
+    ~ if (!is.factor(.)) as.numeric(.) else .
+  )) %>% mutate(Diagnostic = factor(Diagnostic))
+  
+levels(input$BD_patient) <- c("CONTROL", "SCZ", "BD")
 
-count_by_group(input, cutoff = 40, var = "BD_patient")
+
+count_by_group(input, cutoff = 0, var = "BD_patient")
+count_by_group(input, cutoff = 60, var = "BD_patient")
+count_by_group(input, cutoff = 90, var = "BD_patient")
+
 
 
 ### Analysis by sex
@@ -115,29 +118,7 @@ count_by_group(females, cutoff=90, var="BD_patient")
 count_by_group(males, cutoff=90, var="BD_patient")  
   
 #Taking Age into play
-jpeg(filename='../Age_in_BD_patients.jpeg')
-ggplot(
-  input, aes(x = Age, fill = BD_patient)
-) +
-  geom_density(alpha = 0.4) +
-  labs(
-    title = "Age distribution in BD",
-    x = "Age",
-    y = "Density"
-  ) +
-  theme_minimal()
-dev.off()
-
-####Match controls and cases
-input_clean <- subset(input, is.finite(Age))
-set.seed(13)
-match_obj <- MatchIt::matchit(BD_patient ~ Age, 
-                     data = input_clean, 
-                     method = "nearest", 
-                     ratio = 1)
-balanced_age <- MatchIt::match.data(match_obj)
-
-jpeg(filename='../After_balance_age_in_BD_patients.jpeg')
+jpeg(filename='Age_in_BD_patients.jpeg')
 ggplot(
   balanced_age, aes(x = Age, fill = BD_patient)
 ) +
@@ -150,8 +131,32 @@ ggplot(
   theme_minimal()
 dev.off()
 
-writexl::write_xlsx(balanced_age, path= "balanced_samples_all_data_LQ.xlsx")
-count_by_group(balanced_age, cutoff=80, var="BD_patient") 
+out_BD <- input%>%
+  filter(!(BD_patient == "BD"))%>%droplevels()
+####Match controls and cases
+input_clean <- subset(out_BD, is.finite(Age))
+set.seed(13)
+match_obj <- MatchIt::matchit(BD_patient ~ Age, 
+                     data = input_clean, 
+                     method = "nearest", 
+                     ratio = 1)
+balanced_age <- MatchIt::match.data(match_obj)
+
+jpeg(filename='balance_age_in_SCZ_patients.jpeg')
+ggplot(
+  balanced_age, aes(x = Age, fill = BD_patient, color=BD_patient)
+) +
+  geom_density(alpha = 0.4) +
+  labs(
+    title = "Age distribution in SCZ",
+    x = "Age",
+    y = "Density"
+  ) +
+  theme_minimal()
+dev.off()
+
+writexl::write_xlsx(balanced_age, path= "balanced_samples_all_data_LQ_SCZ.xlsx")
+count_by_group(balanced_age, cutoff=0, var="BD_patient") 
 
 #Balanced age LQ distrib
 jpeg("All_samples_balanced_age_LQ_dist.jpeg")
