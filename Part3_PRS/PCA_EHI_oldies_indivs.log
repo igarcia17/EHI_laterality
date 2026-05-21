@@ -1,0 +1,31 @@
+PLINK v1.9.0-b.7.7 64-bit (22 Oct 2024)
+Options in effect:
+  --bfile ALL_5374_bfile
+  --extract pruning_all_5374_indiv.prune.in
+  --keep ../EHI_laterality/Part3_PRS/oldies_indivs.list
+  --out ../EHI_laterality/Part3_PRS/PCA_EHI_oldies_indivs
+  --pca 20
+
+Hostname: ines-laptop-ubuntu
+Working directory: /home/ines/Desktop/PRScx
+Start time: Thu May 21 13:12:59 2026
+
+Random number seed: 1779365579
+15685 MB RAM detected; reserving 7842 MB for main workspace.
+2991210 variants loaded from .bim file.
+5374 people (2660 males, 2714 females) loaded from .fam.
+5374 phenotype values loaded from .fam.
+--extract: 142217 variants remaining.
+--keep: 621 people remaining.
+Using up to 8 threads (change this with --threads).
+Before main variant filters, 621 founders and 0 nonfounders present.
+Calculating allele frequencies... done.
+Total genotyping rate in remaining samples is 0.997051.
+142217 variants and 621 people pass filters and QC.
+Among remaining phenotypes, 345 are cases and 276 are controls.
+Relationship matrix calculation complete.
+--pca: Results saved to
+../EHI_laterality/Part3_PRS/PCA_EHI_oldies_indivs.eigenval and
+../EHI_laterality/Part3_PRS/PCA_EHI_oldies_indivs.eigenvec .
+
+End time: Thu May 21 13:13:01 2026
