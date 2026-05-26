@@ -11,85 +11,160 @@ library('org.Hs.eg.db')
 library(EnhancedVolcano, quietly = TRUE)
 library(clusterProfiler, quietly = TRUE)
 library(msigdbr, quietly = T)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
 
-filter_genes_blood <- T
+
+cutoffs <- c("0", "60", "90")
+oldies <- T
 tissues <- c("Amygdala", "Anterior_cingulate_cortex_BA24", "Caudate_basal_ganglia",
-             "Cerebellar_Hemisphere", "Cerebellum", "Cortex", "Frontal_Cortex_BA9",
+             "Cerebellum", "Frontal_Cortex_BA9",
              "Hippocampus", "Hypothalamus", 
              "Nucleus_accumbens_basal_ganglia",
-             "Putamen_basal_ganglia","Spinal_cord_cervical_c-1",
-             "Substantia_nigra")
+             "Putamen_basal_ganglia","Substantia_nigra")
+db_sets <- msigdbr(species = 'Homo sapiens', collection = "C5", 
+                   subcategory = NULL)%>% 
+  dplyr::select(gs_name, ensembl_gene)
 
-genes_to_include <- as.data.frame(data.table::fread("all_genes.tsv"))[,1]
-if (!file.exists("genes_to_include.RData")) {
-  save(genes_to_include, file = "genes_to_include.RData")}
+input <- as.data.frame(readxl::read_xlsx("All_data_available_genetic_exp.xlsx"
+                                         , sheet = 1))%>%
+  mutate(across(
+    where(~ n_distinct(., na.rm = TRUE) == 2),
+    as.factor
+  )) %>% mutate(Diagnostic = factor(Diagnostic),
+                Cutoff0 = factor(Cutoff0),
+                Cutoff40= factor(Cutoff40),
+                Cutoff60 = factor(Cutoff60),
+                Cutoff80 = factor(Cutoff80),Cutoff90 = factor(Cutoff90),
+                Age = as.numeric(Age),
+                Score10items =as.numeric(Score10items),
+                PRS_handedness= as.numeric(PRS_handedness),
+                PRS_amb = as.numeric(PRS_amb),
+                PRS_BD = as.numeric(PRS_BD),
+                PRS_SCZ = as.numeric(PRS_SCZ),
+                Age_group =factor(Age_group),
+                WAVE = factor(WAVE)
+  )%>%
+  mutate(across(
+    c(Cutoff0, Cutoff40, Cutoff60, Cutoff80, Cutoff90),
+    ~ factor(.x, levels = c("RIGHT", "MIXED", "LEFT"))))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "MIXED",
+                    "NON-LATERAL",
+                    "LATERAL"),
+             levels = c("LATERAL", "NON-LATERAL")),
+    .names = "Lateral_Cutoff{str_remove(.col, 'Cutoff')}"
+  ))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "RIGHT",
+                    "RH",
+                    "NRH"),
+             levels = c("RH", "NRH")),
+    .names = "NRH_{str_remove(.col, 'Cutoff')}"
+  ))
+
+if(oldies){
+  input <- input %>%
+    filter(Oldies_dataset == "YES") %>% 
+    filter(has_RNA=="YES")%>%droplevels()
+}else{
+  input <- input%>%filter(has_RNA=="YES")%>%droplevels()
+}
+
+#Take cellular proportions into account
+cell_prop <- as.data.frame(data.table::fread("CIBERSORTx_725_indiv_RNAseq_MadManic.txt"))
+cells <- colnames(cell_prop)[!colnames(cell_prop) %in% c("Mixture", "RMSE", "P-value", "Correlation")]
+
+input <- input %>%
+  mutate(row_order_original = row_number())
+
+input <- input %>%
+  left_join(cell_prop, by = c("File" = "Mixture"))
+stopifnot(all(input$row_order_original == seq_len(nrow(input))))
+
+cell_mat <- input[, cells, drop = FALSE]
+cell_mat <- as.data.frame(lapply(cell_mat, as.numeric))
+cell_mat <- as.data.frame(lapply(cell_mat, function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  x
+}))
+
+set.seed(1)
+pca <- prcomp(cell_mat,
+              center = TRUE,
+              scale. = TRUE)
+cell_pcs <- as.data.frame(pca$x[, 1:2])
+colnames(cell_pcs) <- c("CellPC1", "CellPC2")
+input <- bind_cols(input, cell_pcs)
+
 
 for(tissue in tissues){
   
-  if (!dir.exists(paste0("SA_out_",tissue))) {
-    dir.create(paste0("SA_out_",tissue))
+  if (!dir.exists(paste0("Brain_results/Brain_NRH_",tissue))) {
+    dir.create(paste0("Brain_results/Brain_NRH_",tissue))
+  }
+
+  #To load counts
+inputF <- paste0("Imputed_brain/Brain_", tissue, "/")
+files <- sub("\\.tsv$", "", input$File)
+# IDs desde input$File, quitando .tsv, porque tienen esa R
+sample_ids <- sub("\\.tsv$", "", input$File)
+
+expr_list <- lapply(sample_ids, function(sample_id) {
+  matched_file <- list.files(
+    path = inputF,
+    pattern = paste0("^", sample_id, "_.*\\.tsv$"),
+    full.names = TRUE)
+  
+  if (length(matched_file) == 0) {
+    warning(paste("No se encontró archivo para:", sample_id))
+    return(NULL)
   }
   
-inputF <- paste0("Brain_", tissue, "_merged_counts.txt")
-outF <- paste0("SA_out_",tissue,"/all_results_", tissue, ".txt")
-out_005_F <- paste0("SA_out_",tissue,"/degs_adjP_005_", tissue, ".txt")
-out_001_F <- paste0("SA_out_",tissue,"/degs_adjP_001_", tissue, ".txt")
-gsea_out_F <- paste0("SA_out_",tissue,"/gsea_", tissue, ".txt")
+  if (length(matched_file) > 1) {
+    warning(paste("Más de un archivo para:", sample_id, "- usando el primero"))
+    matched_file <- matched_file[1]
+  }
+  
+  df <- read.table(
+    matched_file,
+    header = TRUE,
+    sep = "\t",
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+  
+  counts <- df[, 2]
+  names(counts) <- df[, 1]
+  
+  return(counts)
+})
+expr_matrix <- do.call(cbind, expr_list)
+colnames(expr_matrix) <- input$ID
+rm(expr_list)
+gc()
 
-counts <- as.data.frame(data.table::fread(inputF))
-meta <- as.data.frame(readxl::read_xlsx("config_file_DGE_MadManic.xlsx"))%>%
-  mutate(across(c(Sex, Case_Ctrl_SA, Ethnicity,
-                  Case_Ctrl_BD,  Wave, lt_exposed, est_exposed, 
-                  bzd_exposed, ap_exposed,ad_exposed), as.factor))%>%
-  mutate(Sex = relevel(Sex, ref = "Male"),
-         Ethnicity =relevel(Ethnicity, ref="EUR"),
-         Case_Ctrl_BD=relevel(Case_Ctrl_BD, ref = "Control"),
-         Case_Ctrl_SA=relevel(Case_Ctrl_SA, ref= "Control")
-                  )
-cell_prop <- as.data.frame(data.table::fread("CIBERSORTx_725_indiv_RNAseq_MadManic.txt"))
-cell_prop$Mixture <- cell_prop$Mixture |>
-  gsub(".tsv", "", x= _)
 
-if(filter_genes_blood){
-counts <- counts %>%
-  dplyr::filter(Gene %in% genes_to_include)}
+pathF <- paste0("Brain_results/Brain_NRH_",tissue)
+outF <- paste0(pathF, "/all_results_", tissue, ".txt")
+out_005_F <- paste0(pathF,"/degs_adjP_005_", tissue, ".txt")
+gsea_out_F <- paste0(pathF,"/gsea_", tissue, ".txt")
 
-meta$Sample_name <- meta$Sample_name |>
-  gsub("CSI", "CSIC", x = _) |>
-  gsub("_", "R_", x = _)
-
-samples_selected <- meta$Sample_name
-meta <- meta %>%
-  left_join(cell_prop, by = c("Sample_name" = "Mixture"))
-
-if (!file.exists("meta.RData")) {
-  save(meta, file = "meta.RData")}
-
-counts <- counts%>%
-  dplyr::select(Gene, all_of(samples_selected))
-
-# Set counts as matrix
-rownames(counts) <- counts[,1]
-counts <- counts[,-1]
-counts <- as.matrix(counts)
-
-#Order metadata
-all(colnames(counts) %in% meta$Sample_name)
-meta <- meta[match(colnames(counts), meta$Sample_name), ]
 
 #Model design
-design <- model.matrix(~ Case_Ctrl_SA + Sex + ns(Age, df=3) # permite modelizacion polinomica de la edad
-                       + RIN + Ethnicity 
-                       #+ PC1_CIBERSORT + PC2_CIBERSORT + PC3_CIBERSORT + PC4_CIBERSORT + PC5_CIBERSORT
-                       + lt_exposed + bzd_exposed + ap_exposed
-                       + ad_exposed + est_exposed, data = meta)
-#Tambien añadir cibersortX and SVA
+design <- model.matrix(~ NRH_0 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
+                       + RIN + Ethnicity + WAVE +CellPC1+CellPC2
+                       , data = input)
 
 #Fit model
 set.seed(1)
-fit <- lmFit(counts, design)
+fit <- lmFit(expr_matrix, design)
 fit <- eBayes(fit)
-results <- topTable(fit, coef = "Case_Ctrl_SACase", number = Inf)
+
+results <- topTable(fit, coef = "NRH_0NRH", number = Inf)
 symbol <- mapIds(get('org.Hs.eg.db'), keys=row.names(results), column="SYMBOL", 
                  keytype="ENSEMBL", multiVals="first") #to obtain gene symbols
 
@@ -101,27 +176,10 @@ results$description <- description
 
 deg_005 <- results %>%
   dplyr::filter(adj.P.Val < 0.05)
-deg_001 <- results %>%
-  dplyr::filter(adj.P.Val < 0.01)
 write.table(results, file=outF, quote=FALSE, sep="\t", col.names=NA)
 write.table(deg_005, file=out_005_F, quote=FALSE, sep="\t", col.names=NA)
-write.table(deg_001, file=out_001_F, quote=FALSE, sep="\t", col.names=NA)
 
-jpeg(filename = paste0("SA_out_",tissue,"/MA_plot_",tissue,".jpeg"), units="in", width=8, height=10, res=300)
-sig <- results$adj.P.Val < 0.01
-plot(results$AveExpr, results$logFC,
-     pch = 16, cex = 0.5, col = "grey30",
-     xlab = "Average Expression",
-     ylab = "Log2 Fold Change",
-     title = paste0("MA plot ", tissue))
-
-points(results$AveExpr[sig], results$logFC[sig],
-       col = "red", pch = 16, cex = 0.5)
-abline(h = 0, col = "red", lwd = 2)
-invisible(dev.off())
-
-
-jpeg(filename = paste0("SA_out_",tissue,"/Volcano_",tissue,".jpeg"), units="in", width=8, height=12, res=300)
+jpeg(filename = paste0(pathF,"/Volcano_",tissue,".jpeg"), units="in", width=8, height=12, res=300)
 EnhancedVolcano(results, lab = results$symbol, x = 'logFC', y = 'P.Value',
                 pCutoff = 0.000002, FCcutoff= 0.3, 
                 #pCutOff is p value for last significant acc to adjp value
@@ -132,9 +190,6 @@ EnhancedVolcano(results, lab = results$symbol, x = 'logFC', y = 'P.Value',
 invisible(dev.off())
 
 #Perform GSEA
-db_sets <- msigdbr(species = 'Homo sapiens', collection = "C5", 
-                   subcategory = NULL)%>% 
-  dplyr::select(gs_name, ensembl_gene)
 results <- results[complete.cases(results), ]
 geneList <- results$t
 names(geneList) <- rownames(results)
@@ -150,27 +205,187 @@ write.table(egs_df, file = gsea_out_F, sep= "\t", quote = F, row.names = T)
 }
 
 
+###Only in BD
+
+input <- as.data.frame(readxl::read_xlsx("All_data_available_genetic_exp.xlsx"
+                                         , sheet = 1))%>%
+  mutate(across(
+    where(~ n_distinct(., na.rm = TRUE) == 2),
+    as.factor
+  )) %>% mutate(Diagnostic = factor(Diagnostic),
+                Cutoff0 = factor(Cutoff0),
+                Cutoff40= factor(Cutoff40),
+                Cutoff60 = factor(Cutoff60),
+                Cutoff80 = factor(Cutoff80),Cutoff90 = factor(Cutoff90),
+                Age = as.numeric(Age),
+                Score10items =as.numeric(Score10items),
+                PRS_handedness= as.numeric(PRS_handedness),
+                PRS_amb = as.numeric(PRS_amb),
+                PRS_BD = as.numeric(PRS_BD),
+                PRS_SCZ = as.numeric(PRS_SCZ),
+                Age_group =factor(Age_group),
+                WAVE = factor(WAVE)
+  )%>%
+  mutate(across(
+    c(Cutoff0, Cutoff40, Cutoff60, Cutoff80, Cutoff90),
+    ~ factor(.x, levels = c("RIGHT", "MIXED", "LEFT"))))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "MIXED",
+                    "NON-LATERAL",
+                    "LATERAL"),
+             levels = c("LATERAL", "NON-LATERAL")),
+    .names = "Lateral_Cutoff{str_remove(.col, 'Cutoff')}"
+  ))%>%
+  mutate(across(
+    paste0("Cutoff", cutoffs),
+    ~ factor(ifelse(.x == "RIGHT",
+                    "RH",
+                    "NRH"),
+             levels = c("RH", "NRH")),
+    .names = "NRH_{str_remove(.col, 'Cutoff')}"
+  ))
+
+if(oldies){
+  input <- input %>%
+    filter(Oldies_dataset == "YES") %>%filter(STATUS =="YES")%>% 
+    filter(has_RNA=="YES")%>%droplevels()
+}else{
+  input <- input%>%filter(has_RNA=="YES")%>%filter(STATUS =="YES")%>%droplevels()
+}
+
+#Take cellular proportions into account
+cell_prop <- as.data.frame(data.table::fread("CIBERSORTx_725_indiv_RNAseq_MadManic.txt"))
+cells <- colnames(cell_prop)[!colnames(cell_prop) %in% c("Mixture", "RMSE", "P-value", "Correlation")]
+
+input <- input %>%
+  mutate(row_order_original = row_number())
+
+input <- input %>%
+  left_join(cell_prop, by = c("File" = "Mixture"))
+stopifnot(all(input$row_order_original == seq_len(nrow(input))))
+
+cell_mat <- input[, cells, drop = FALSE]
+cell_mat <- as.data.frame(lapply(cell_mat, as.numeric))
+cell_mat <- as.data.frame(lapply(cell_mat, function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  x
+}))
+
+set.seed(1)
+pca <- prcomp(cell_mat,
+              center = TRUE,
+              scale. = TRUE)
+cell_pcs <- as.data.frame(pca$x[, 1:2])
+colnames(cell_pcs) <- c("CellPC1", "CellPC2")
+input <- bind_cols(input, cell_pcs)
+
+
+for(tissue in tissues){
+  
+  if (!dir.exists(paste0("Brain_results/Brain_NRH_onlyBD_",tissue))) {
+    dir.create(paste0("Brain_results/Brain_NRH_onlyBD_",tissue))
+  }
+  
+  #To load counts
+  inputF <- paste0("Imputed_brain/Brain_", tissue, "/")
+  files <- sub("\\.tsv$", "", input$File)
+  # IDs desde input$File, quitando .tsv, porque tienen esa R
+  sample_ids <- sub("\\.tsv$", "", input$File)
+  
+  expr_list <- lapply(sample_ids, function(sample_id) {
+    matched_file <- list.files(
+      path = inputF,
+      pattern = paste0("^", sample_id, "_.*\\.tsv$"),
+      full.names = TRUE)
+    
+    if (length(matched_file) == 0) {
+      warning(paste("No se encontró archivo para:", sample_id))
+      return(NULL)
+    }
+    
+    if (length(matched_file) > 1) {
+      warning(paste("Más de un archivo para:", sample_id, "- usando el primero"))
+      matched_file <- matched_file[1]
+    }
+    
+    df <- read.table(
+      matched_file,
+      header = TRUE,
+      sep = "\t",
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+    
+    counts <- df[, 2]
+    names(counts) <- df[, 1]
+    
+    return(counts)
+  })
+  expr_matrix <- do.call(cbind, expr_list)
+  colnames(expr_matrix) <- input$ID
+  rm(expr_list)
+  gc()
+  
+  
+  pathF <- paste0("Brain_results/Brain_NRH_onlyBD_",tissue)
+  outF <- paste0(pathF, "/all_onlyBD_results_", tissue, ".txt")
+  out_005_F <- paste0(pathF,"/degs_onlyBD_adjP_005_", tissue, ".txt")
+  gsea_out_F <- paste0(pathF,"/gsea_onlyBD_", tissue, ".txt")
+  
+  
+  #Model design
+  design <- model.matrix(~ NRH_0 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
+                         + RIN + Ethnicity + WAVE +CellPC1+CellPC2
+                         , data = input)
+  
+  #Fit model
+  set.seed(1)
+  fit <- lmFit(expr_matrix, design)
+  fit <- eBayes(fit)
+  
+  results <- topTable(fit, coef = "NRH_0NRH", number = Inf)
+  symbol <- mapIds(get('org.Hs.eg.db'), keys=row.names(results), column="SYMBOL", 
+                   keytype="ENSEMBL", multiVals="first") #to obtain gene symbols
+  
+  description <- mapIds(get('org.Hs.eg.db'), keys=row.names(results),
+                        column="GENENAME", keytype="ENSEMBL", 
+                        multiVals="first") #to obtain description
+  results <- cbind(symbol, results)
+  results$description <- description
+  
+  deg_005 <- results %>%
+    dplyr::filter(adj.P.Val < 0.05)
+  write.table(results, file=outF, quote=FALSE, sep="\t", col.names=NA)
+  write.table(deg_005, file=out_005_F, quote=FALSE, sep="\t", col.names=NA)
+  
+  jpeg(filename = paste0(pathF,"/Volcano_onlyBD_",tissue,".jpeg"), units="in", width=8, height=12, res=300)
+  EnhancedVolcano(results, lab = results$symbol, x = 'logFC', y = 'P.Value',
+                  pCutoff = 0.000002, FCcutoff= 0.3, 
+                  #pCutOff is p value for last significant acc to adjp value
+                  ylim = c(0, 11), xlim = c(-0.6, 0.6), labSize = 3,
+                  legendLabSize = 9, legendIconSize = 5, drawConnectors = TRUE,
+                  widthConnectors = 0.5, max.overlaps = 80, title = '', arrowheads = FALSE,
+                  subtitle= '', gridlines.major = FALSE, gridlines.minor = FALSE)
+  invisible(dev.off())
+  
+  #Perform GSEA
+  results <- results[complete.cases(results), ]
+  geneList <- results$t
+  names(geneList) <- rownames(results)
+  geneList <- sort(geneList, decreasing = TRUE)
+  
+  set.seed(1)
+  egs <- GSEA(geneList = geneList, pvalueCutoff = 0.05, eps = 0, pAdjustMethod = "BH", 
+              seed = T, TERM2GENE = db_sets) #for more accurate p value set eps to 0
+  egs_df <- data.frame(egs@result)
+  egs_df <- egs_df[, -c(1,2)]
+  
+  write.table(egs_df, file = gsea_out_F, sep= "\t", quote = F, row.names = T)
+}
 
 
 
 
 
 
-################################################################################
-### Codigo cuando relacion de una covariable con el cambio no es lineal
-design <- model.matrix(~ sexo + ns(edad_num, df = 3), data = meta)
-###
-
-
-
-jpeg(filename = PCAF, width=900, height=900, quality=300)
-pca <- DESeq2::plotPCA(counts)
-
-title <- "Principal Components Plot"
-
-pca + ggtitle(title) + 
-  geom_point(size = 6) +
-  theme(plot.title = element_text(size=40, hjust = 0.5, face = "bold"), axis.title=element_text(size=20),
-        legend.text=element_text(size=15),legend.title=element_text(size=15)) +
-  geom_text_repel(aes(label=colnames(vst)), size=5, point.padding = 0.6)
-invisible(dev.off())
