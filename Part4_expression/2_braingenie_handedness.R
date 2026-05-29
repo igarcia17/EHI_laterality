@@ -1,6 +1,3 @@
-workingD <- rstudioapi::getActiveDocumentContext()$path
-setwd(dirname(workingD))
-rm(list = ls())
 #Brain-Regional Gene Expression Imputed from the Blood Transcriptome by BrainGENIE Recapitulates Dysregulation Observed in the Postmortem Brain in Alzheimer’s Disease
 #https://www.medrxiv.org/content/10.1101/2025.10.13.25337831v1
 library(dplyr)
@@ -14,15 +11,13 @@ library(msigdbr, quietly = T)
 library(tidyverse)
 library(ggplot2)
 library(tidyr)
-
+workingD <- rstudioapi::getActiveDocumentContext()$path
+setwd(dirname(workingD))
+rm(list = ls())
 
 cutoffs <- c("0", "60", "90")
-oldies <- T
-tissues <- c("Amygdala", "Anterior_cingulate_cortex_BA24", "Caudate_basal_ganglia",
-             "Cerebellum", "Frontal_Cortex_BA9",
-             "Hippocampus", "Hypothalamus", 
-             "Nucleus_accumbens_basal_ganglia",
-             "Putamen_basal_ganglia","Substantia_nigra")
+oldies <- F
+tissues <- c("Spinal_cord_cervical_c-1")
 db_sets <- msigdbr(species = 'Homo sapiens', collection = "C5", 
                    subcategory = NULL)%>% 
   dplyr::select(gs_name, ensembl_gene)
@@ -102,9 +97,9 @@ input <- bind_cols(input, cell_pcs)
 
 
 for(tissue in tissues){
-  
-  if (!dir.exists(paste0("Brain_results/Brain_NRH_",tissue))) {
-    dir.create(paste0("Brain_results/Brain_NRH_",tissue))
+  print(paste0("Starting with region ", tissue))
+  if (!dir.exists(paste0("Brain_results_DGE_GSEA/Brain_BD_BDvscontrols_",tissue))) {
+    dir.create(paste0("Brain_results_DGE_GSEA/Brain_BD_BDvscontrols_",tissue))
   }
 
   #To load counts
@@ -147,8 +142,8 @@ colnames(expr_matrix) <- input$ID
 rm(expr_list)
 gc()
 
-
-pathF <- paste0("Brain_results/Brain_NRH_",tissue)
+print(paste0("Loaded counts of ", tissue))
+pathF <- paste0("Brain_results_DGE_GSEA/Brain_BD_BDvscontrols_",tissue)
 outF <- paste0(pathF, "/all_results_", tissue, ".txt")
 out_005_F <- paste0(pathF,"/degs_adjP_005_", tissue, ".txt")
 gsea_out_F <- paste0(pathF,"/gsea_", tissue, ".txt")
@@ -156,7 +151,7 @@ gsea_out_F <- paste0(pathF,"/gsea_", tissue, ".txt")
 
 #Model design
 design <- model.matrix(~ NRH_0 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
-                       + RIN + Ethnicity + WAVE +CellPC1+CellPC2
+                       + RIN + Ethnicity + WAVE + CellPC1 + CellPC2 + STATUS
                        , data = input)
 
 #Fit model
@@ -164,7 +159,7 @@ set.seed(1)
 fit <- lmFit(expr_matrix, design)
 fit <- eBayes(fit)
 
-results <- topTable(fit, coef = "NRH_0NRH", number = Inf)
+results <- topTable(fit, coef = "STATUSYES", number = Inf)
 symbol <- mapIds(get('org.Hs.eg.db'), keys=row.names(results), column="SYMBOL", 
                  keytype="ENSEMBL", multiVals="first") #to obtain gene symbols
 
@@ -181,7 +176,7 @@ write.table(deg_005, file=out_005_F, quote=FALSE, sep="\t", col.names=NA)
 
 jpeg(filename = paste0(pathF,"/Volcano_",tissue,".jpeg"), units="in", width=8, height=12, res=300)
 EnhancedVolcano(results, lab = results$symbol, x = 'logFC', y = 'P.Value',
-                pCutoff = 0.000002, FCcutoff= 0.3, 
+                pCutoff = 0.0000001, FCcutoff= 0.1, 
                 #pCutOff is p value for last significant acc to adjp value
                 ylim = c(0, 11), xlim = c(-0.6, 0.6), labSize = 3,
                 legendLabSize = 9, legendIconSize = 5, drawConnectors = TRUE,
@@ -283,8 +278,8 @@ input <- bind_cols(input, cell_pcs)
 
 for(tissue in tissues){
   
-  if (!dir.exists(paste0("Brain_results/Brain_NRH_onlyBD_",tissue))) {
-    dir.create(paste0("Brain_results/Brain_NRH_onlyBD_",tissue))
+  if (!dir.exists(paste0("Brain_results_DGE_GSEA/Brain_NRH60_onlyBD_",tissue))) {
+    dir.create(paste0("Brain_results_DGE_GSEA/Brain_NRH60_onlyBD_",tissue))
   }
   
   #To load counts
@@ -328,14 +323,14 @@ for(tissue in tissues){
   gc()
   
   
-  pathF <- paste0("Brain_results/Brain_NRH_onlyBD_",tissue)
+  pathF <- paste0("Brain_results_DGE_GSEA/Brain_NRH60_onlyBD_",tissue)
   outF <- paste0(pathF, "/all_onlyBD_results_", tissue, ".txt")
   out_005_F <- paste0(pathF,"/degs_onlyBD_adjP_005_", tissue, ".txt")
   gsea_out_F <- paste0(pathF,"/gsea_onlyBD_", tissue, ".txt")
   
   
   #Model design
-  design <- model.matrix(~ NRH_0 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
+  design <- model.matrix(~ NRH_60 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
                          + RIN + Ethnicity + WAVE +CellPC1+CellPC2
                          , data = input)
   
@@ -344,7 +339,7 @@ for(tissue in tissues){
   fit <- lmFit(expr_matrix, design)
   fit <- eBayes(fit)
   
-  results <- topTable(fit, coef = "NRH_0NRH", number = Inf)
+  results <- topTable(fit, coef = "NRH_60NRH", number = Inf)
   symbol <- mapIds(get('org.Hs.eg.db'), keys=row.names(results), column="SYMBOL", 
                    keytype="ENSEMBL", multiVals="first") #to obtain gene symbols
   

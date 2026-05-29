@@ -16,7 +16,7 @@ setwd(dirname(workingD))
 rm(list = ls())
 ########################Parameters
 cutoffs <- c("0", "60", "90")
-oldies <- T
+oldies <- F
 filesF <- "RNAseq-counts_blood/"
 ##########Functions
 
@@ -114,7 +114,7 @@ dge <- dge[keep, , keep.lib.sizes = FALSE]
 dge <- calcNormFactors(dge, method = "TMM")
 #Model design
 design <- model.matrix(~ NRH_0 + SEX + ns(Age, df=3) # permite modelizacion polinomica de la edad
-                       + RIN + Ethnicity + WAVE, data = meta)
+                       + RIN + Ethnicity + WAVE + STATUS, data = meta)
 v <- voom(dge, design, plot = TRUE)
 
 #Fit model
@@ -137,7 +137,7 @@ results$description <- description
 results$Gene <- rownames(results)
 results <- results[, c("Gene", setdiff(colnames(results), "Gene"))]
 
-writexl::write_xlsx(results, path="DEGs_blood_RNA_NRH_0.xlsx",col_names = T)
+writexl::write_xlsx(results, path="DEGs_blood_RNA_NRH_0_all_indiv.xlsx",col_names = T)
 
 
 jpeg(filename = paste0("Volcano_NRH.jpeg"), units="in", width=8, height=12, res=300)

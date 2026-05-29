@@ -2,8 +2,8 @@ import os
 import shutil
 
 samples_file = r"C:\Users\Asus\Desktop\EHI_laterality\Part4_expression\RNA_samples.txt"
-source_dir = r"D:\imputed_expression_250526\Brain_Substantia_nigra\imputed_counts"
-target_dir = r"C:\Users\Asus\Desktop\EHI_laterality\Part4_expression\Imputed_brain\Brain_Substantia_nigra"
+source_dir = r"D:\imputed_expression_250526\Brain_Spinal_cord_cervical_c-1\imputed_counts"
+target_dir = r"C:\Users\Asus\Desktop\EHI_laterality\Part4_expression\Imputed_brain\Brain_Spinal_cord_cervical_c-1"
 
 with open(samples_file, "r") as f:
     valid_samples = set(
