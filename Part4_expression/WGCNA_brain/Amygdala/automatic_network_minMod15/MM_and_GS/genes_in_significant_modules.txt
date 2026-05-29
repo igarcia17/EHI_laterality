@@ -1,0 +1,12 @@
+Module black: 183
+Module brown: 206
+Module magenta: 76
+Module midnightblue: 112
+Module grey60: 37
+Module blue: 1073
+Module turquoise: 132
+Module red: 95
+Module lightyellow: 92
+Module lightcyan: 148
+Module tan: 117
+Module grey: 0
