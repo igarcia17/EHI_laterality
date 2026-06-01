@@ -12,7 +12,7 @@ setwd(dirname(workingD))
 rm(list = ls())
 ########################Parameters
 cutoffs <- c("0", "60", "90")
-oldies <- T
+oldies <- F #because the Age is accounted for in the linear regression it doesnt make sense to age-match
 write_count_comparisons <- FALSE
 variables <- c("PRS_handedness","PRS_amb","PRS_BD","PRS_SCZ")
 ##########Functions
@@ -126,10 +126,10 @@ dev.off()
 df_only_BD <- df%>%filter((STATUS=="YES"))
 
 #Run logistic regression
-m1<- glm(NRH_0 ~ SEX + Age + PC1_oldies+ PC2_oldies + PRS_handedness, data=df,
+m1<- glm(NRH_0 ~ SEX + Age + PC1_all+ PC2_all + PRS_handedness, data=df,
          family=binomial
          )
-m_b<- glm(NRH_0 ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df, family=binomial)
+m_b<- glm(NRH_0 ~ SEX + Age + PC1_all+ PC2_all , data=df, family=binomial)
 summary(m1)
 r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
 r2_base <- pR2(m_b)["r2CU"]
@@ -137,14 +137,14 @@ prs_r2 <- r2_full - r2_base ###PRS r² (%) Nagelkarke
 prs_r2
 r2_full
 
-m1<- lm(Score10items ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df)
-m_b<- lm(Score10items ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df)
+m1<- lm(Score10items ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df)
+m_b<- lm(Score10items ~ SEX + Age + PC1_all+ PC2_all, data=df)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- glm(STATUS ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df, family=binomial)
-m_b<- glm(STATUS ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df, family=binomial)
+m1<- glm(STATUS ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df, family=binomial)
+m_b<- glm(STATUS ~ SEX + Age + PC1_all+ PC2_all, data=df, family=binomial)
 summary(m1)
 r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
 r2_base <- pR2(m_b)["r2CU"]
@@ -153,33 +153,33 @@ prs_r2
 r2_full
 
 ##Severity
-m1<- lm(WHODAS ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df_only_BD)
-m_b<- lm(WHODAS ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(WHODAS ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df_only_BD)
+m_b<- lm(WHODAS ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared
 summary(m1)$r.squared - summary(m_b)$r.squared
 
-m1<- lm(CGI ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df_only_BD)
-m_b<- lm(CGI ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(CGI ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df_only_BD)
+m_b<- lm(CGI ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- lm(INES ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df_only_BD)
-m_b<- lm(INES ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(INES ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df_only_BD)
+m_b<- lm(INES ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- lm(GAF ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_handedness, data=df_only_BD)
-m_b<- lm(GAF ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(GAF ~ SEX + Age+ PC1_all+ PC2_all + PRS_handedness, data=df_only_BD)
+m_b<- lm(GAF ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
 ###PRS of BD
-m1<- glm(STATUS ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df, family=binomial)
-m_b<- glm(STATUS ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df, family=binomial)
+m1<- glm(STATUS ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df, family=binomial)
+m_b<- glm(STATUS ~ SEX + Age + PC1_all+ PC2_all, data=df, family=binomial)
 summary(m1)
 r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
 r2_base <- pR2(m_b)["r2CU"]
@@ -188,33 +188,33 @@ prs_r2
 r2_full
 
 ##Severity using PRS of BD
-m1<- lm(WHODAS ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD)
-m_b<- lm(WHODAS ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(WHODAS ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD)
+m_b<- lm(WHODAS ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared
 summary(m1)$r.squared - summary(m_b)$r.squared
 
-m1<- lm(CGI ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD)
-m_b<- lm(CGI ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(CGI ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD)
+m_b<- lm(CGI ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- lm(INES ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD)
-m_b<- lm(INES ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(INES ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD)
+m_b<- lm(INES ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- lm(GAF ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD)
-m_b<- lm(GAF ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(GAF ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD)
+m_b<- lm(GAF ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
 #Left vs right predicted by PRS of BD in all samples and only in cases
-m1<- glm(NRH_0 ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df, family=binomial)
-m_b<- glm(NRH_0 ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df, family=binomial)
+m1<- glm(NRH_0 ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df, family=binomial)
+m_b<- glm(NRH_0 ~ SEX + Age + PC1_all+ PC2_all, data=df, family=binomial)
 summary(m1)
 r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
 r2_base <- pR2(m_b)["r2CU"]
@@ -222,8 +222,8 @@ prs_r2 <- r2_full - r2_base ###PRS r² (%) Nagelkarke
 prs_r2
 r2_full
 
-m1<- glm(NRH_0 ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD, family=binomial)
-m_b<- glm(NRH_0 ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD, family=binomial)
+m1<- glm(NRH_60 ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD, family=binomial)
+m_b<- glm(NRH_60 ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD, family=binomial)
 summary(m1)
 r2_full <-pR2(m1)["r2CU"] ###Full r² (%) Nagelkarke
 r2_base <- pR2(m_b)["r2CU"]
@@ -231,14 +231,14 @@ prs_r2 <- r2_full - r2_base ###PRS r² (%) Nagelkarke
 prs_r2
 r2_full
 
-m1<- lm(Score10items ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df)
-m_b<- lm(Score10items ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df)
+m1<- lm(Score10items ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df)
+m_b<- lm(Score10items ~ SEX + Age + PC1_all+ PC2_all, data=df)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke
 
-m1<- lm(Score10items ~ SEX + Age+ PC1_oldies+ PC2_oldies + PRS_BD, data=df_only_BD)
-m_b<- lm(Score10items ~ SEX + Age + PC1_oldies+ PC2_oldies, data=df_only_BD)
+m1<- lm(Score10items ~ SEX + Age+ PC1_all+ PC2_all + PRS_BD, data=df_only_BD)
+m_b<- lm(Score10items ~ SEX + Age + PC1_all+ PC2_all, data=df_only_BD)
 summary(m1)
 summary(m1)$r.squared###Full r² (%) Nagelkarke
 summary(m1)$r.squared - summary(m_b)$r.squared###PRS r² (%) Nagelkarke

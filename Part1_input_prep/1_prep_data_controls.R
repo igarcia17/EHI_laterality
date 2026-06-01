@@ -136,6 +136,43 @@ controls_clean <- controls_clean%>%
   mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
   select(-Diagnostic_new)
 
+#Filter out those with no age and no sex
+Cases_all <- Cases_all %>% 
+  mutate(
+    Age = as.numeric(Age)
+  ) %>%
+  filter(
+    Sex %in% c("HOMBRE", "MUJER"),
+    Age >= 10 & Age <= 100
+  )
+controls <- controls %>% 
+  mutate(
+    Age = as.numeric(Age)
+  ) %>%
+  filter(
+    Sex %in% c("HOMBRE", "MUJER"),
+    Age >= 10 & Age <= 100
+  )
+controls_clean <- controls_clean %>% 
+  mutate(
+    Age = as.numeric(Age)
+  ) %>%
+  filter(
+    Sex %in% c("HOMBRE", "MUJER"),
+    Age >= 10 & Age <= 100
+  )
+
+Cases_all_ehi <- Cases_all_ehi %>% 
+  filter(Genetic_code %in% Cases_all$ID)
+Cases_all <- Cases_all %>% 
+  filter(ID %in% Cases_all_ehi$Genetic_code)
+
+ehi_controls <- ehi_controls %>% filter(ID %in% controls$ID)
+controls <- controls %>% filter(ID %in% ehi_controls$ID)
+
+ehi_controls_clean <- ehi_controls_clean %>% filter(ID %in% controls_clean$ID)
+controls_clean <- controls_clean %>% filter(ID %in% ehi_controls_clean$ID)
+
 
 ###SAVE an EXCEL file for controls
 wb <- createWorkbook()
@@ -143,7 +180,7 @@ addWorksheet(wb, "meta_controls")
 writeData(wb, "meta_controls", controls)
 addWorksheet(wb, "EHI_controls")
 writeData(wb, "EHI_controls", ehi_controls)
-saveWorkbook(wb, "controls_EHI_190526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_EHI_290526.xlsx", overwrite = TRUE)
 
 #SAVE an EXCEL file for cases
 wb <- createWorkbook()
@@ -151,7 +188,7 @@ addWorksheet(wb, "meta_cases")
 writeData(wb, "meta_cases", Cases_all)
 addWorksheet(wb, "EHI_cases")
 writeData(wb, "EHI_cases", Cases_all_ehi)
-saveWorkbook(wb, "cases_EHI_190526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "cases_EHI_290526.xlsx", overwrite = TRUE)
 
 ###SAVE an EXCEL file for clean controls
 wb <- createWorkbook()
@@ -159,7 +196,7 @@ addWorksheet(wb, "meta_controls_clean")
 writeData(wb, "meta_controls_clean", controls_clean)
 addWorksheet(wb, "EHI_controls_clean")
 writeData(wb, "EHI_controls_clean", ehi_controls_clean)
-saveWorkbook(wb, "controls_clean_EHI_190526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_clean_EHI_290526.xlsx", overwrite = TRUE)
 
 ###Please manually assess Diagnostic uniformity and that everything is OK
 

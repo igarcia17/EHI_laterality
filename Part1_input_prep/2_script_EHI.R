@@ -13,8 +13,8 @@ library(pheatmap)
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
-casesF <- "cases_EHI_190526.xlsx"
-controlsF <- "controls_clean_EHI_190526.xlsx"
+casesF <- "cases_EHI_290526.xlsx"
+controlsF <- "controls_clean_EHI_290526.xlsx"
 
 cases <- as.data.frame(readxl::read_xlsx(casesF, sheet = 1, 
                                               col_types="text", na="#N/A"))%>%
@@ -70,8 +70,7 @@ for (i in seq_along(ks)){
 plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
-best_index <- which.min(rmse)
-best_k <- ks[best_index] #6 es la mejor k con 0.2 missing values  
+best_k <- ks[which.min(rmse)] #8 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)
