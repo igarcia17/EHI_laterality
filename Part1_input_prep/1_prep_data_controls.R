@@ -1,3 +1,5 @@
+#This script only prepares the data to be in the same format and to be cleaned and curated
+
 library(dplyr)
 library(tidyr)
 library(effsize)

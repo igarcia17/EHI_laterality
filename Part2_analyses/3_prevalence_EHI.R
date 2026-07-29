@@ -1,10 +1,11 @@
 library(dplyr)
 library(ggplot2)
-
+#Para funciones basicas de prevalencia y hacer un subset de individuos age-matched
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
 
+#Load input data
 input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_data_LQ_PLUS_items.xlsx", sheet = 1, 
                                          col_types="text", na="#N/A"))%>%
   mutate(across(
@@ -16,12 +17,9 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
     ~ if (!is.factor(.)) as.numeric(.) else .
   )) %>% mutate(Diagnostic = factor(Diagnostic))
   
-
 count_by_group <- function(df, cutoff, var = NULL) {
-  
   allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
-  
-  # función interna para crear grupos
+  # función interna para crear grupos de uso de mano segun un umbral, ya sea dependiendo de una variable o no
   make_groups <- function(data) {
     data %>%
       mutate(
@@ -29,22 +27,15 @@ count_by_group <- function(df, cutoff, var = NULL) {
           Score10items < -cutoff ~ "left",
           Score10items >= -cutoff & Score10items <= cutoff ~ "mixed",
           Score10items > cutoff ~ "right"
-        )
-      )
-  }
+        ))}
   
-  # =========================
-  # CASO 1: SIN VARIABLE
-  # =========================
+  # Si no se especifica ninguna variable:
   if (is.null(var) || var == "None") {
-    
     df2 <- make_groups(df)
-    
     return(
       df2 %>%
         group_by(group) %>%
         summarise(n = n(), .groups = "drop") %>%
-        
         # añadir lateralized
         bind_rows(
           df2 %>%
@@ -52,7 +43,6 @@ count_by_group <- function(df, cutoff, var = NULL) {
             summarise(n = n()) %>%
             mutate(group = "lateralized")
         ) %>%
-        
         mutate(
           total = sum(n[group != "lateralized"]),
           perc = 100 * n / total,
@@ -60,31 +50,22 @@ count_by_group <- function(df, cutoff, var = NULL) {
         ) %>%
         select(group, label) %>%
         arrange(match(group, c("left", "mixed", "right", "lateralized")))
-    )
-  }
+    )}
   
-  # =========================
-  # CASO 2: CON VARIABLE
-  # =========================
-  
+  # Si se quiere agrupar por una variable de la lista de vars permitidas
   if (!(var %in% allowed_vars)) {
-    stop("var debe ser una de: Sex, BD_patient, Diagnostic o NULL/None")
-  }
+    stop("var debe ser una de: Sex, BD_patient, Diagnostic o NULL/None") }
   
   df2 <- make_groups(df)
-  
   res <- df2 %>%
     group_by(group, .data[[var]]) %>%
     summarise(n = n(), .groups = "drop") %>%
-    
     group_by(.data[[var]]) %>%
     mutate(
       total_var = sum(n),
       perc = 100 * n / total_var,
       label = sprintf("%d (%.2f%%)", n, perc)
-    ) %>%
-    ungroup()
-  
+    ) %>%ungroup()
   # añadir lateralized por cada nivel de var
   lateralized <- df2 %>%
     filter(group %in% c("left", "right")) %>%
@@ -103,11 +84,10 @@ count_by_group <- function(df, cutoff, var = NULL) {
     arrange(.data[[var]], match(group, c("left", "mixed", "right", "lateralized")))
 }
 
+#Contar uso de manos en general, comparando entre casos y controles, sin match por edad
 count_by_group(input, cutoff = 40, var = "BD_patient")
 
-
-### Analysis by sex
-
+###Contar uso de manos en hombres y en mujeres, comparando entre casos y controles, sin match por edad
 females <- input%>%  filter(Sex=="MUJER")%>%droplevels()
 males <- input%>%filter(Sex=="HOMBRE")%>%droplevels()
 

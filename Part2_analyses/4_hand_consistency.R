@@ -1,3 +1,4 @@
+#To account for those mixed-handed users that are actually ambidextrous
 library(dplyr)
 library(ggplot2)
 library(ggrepel)
@@ -6,23 +7,20 @@ workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
 
-
-input <- as.data.frame(readxl::read_xlsx("../input_prep/all_samples_all_data_LQ_PLUS_items.xlsx", sheet = 1, 
+input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_data_LQ_PLUS_items.xlsx", sheet = 1, 
                                          col_types="text", na="#N/A"))%>%
   mutate(across(
-    where(~ n_distinct(., na.rm = TRUE) == 2),
-    as.factor
+    where(~ n_distinct(., na.rm = TRUE) == 2), as.factor
   )) %>%
   mutate(across(-c(ID, Diagnostic),~ if (!is.factor(.)) as.numeric(.) else .)) %>% 
   mutate(Diagnostic = factor(Diagnostic))
 
-lat_df <- input %>%
-  rowwise() %>%
+lat_df <- input %>% rowwise() %>%
   mutate(consistency_sd = 
            (sd(c_across(7:16))),
          hand_cons_inverse =
            1/(consistency_sd + 1),
-         counts_of_three= sum(c_across(7:16) == 3, na.rm = TRUE),
+         counts_of_three= sum(c_across(7:16) == 3, na.rm = TRUE)
          ) %>%
   ungroup()
 n_above <- sum(lat_df$hand_cons_inverse > 0.9, na.rm = TRUE)

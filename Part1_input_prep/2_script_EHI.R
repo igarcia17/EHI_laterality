@@ -1,3 +1,8 @@
+#With this script, LQ is calculated for cases and controls based on EHI answers,
+# as well as imputing missing values in the EHI through KNN
+# different correlation graphs and more harmonization of data
+
+
 library(dplyr)
 library(tidyr)
 library(effsize)
