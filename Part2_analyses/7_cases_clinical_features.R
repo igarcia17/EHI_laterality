@@ -330,7 +330,7 @@ scales <- as.data.frame(readxl::read_xlsx("Escalas_clinicas_MadManic.xlsx", shee
                                           na=c("#N/A", "#N/D")))
 scales[[1]] <- gsub("IE", "IEV", scales[[1]])
 
-meta_cases <- as.data.frame(readxl::read_xlsx("../input_prep/cases_EHI_070526.xlsx", sheet = 1, 
+meta_cases <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_070526.xlsx", sheet = 1, 
                                          col_types="text", na=c("#N/A", "#N/D")))%>%
   mutate(across(
     where(~ n_distinct(., na.rm = TRUE) == 2),
