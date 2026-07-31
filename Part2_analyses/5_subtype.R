@@ -17,7 +17,7 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
     -c(ID, Diagnostic),                    
     ~ if (!is.factor(.)) as.numeric(.) else .
   )) %>% mutate(Diagnostic = factor(Diagnostic))
-
+input <- subset(input, is.finite(Age))
 count_by_group <- function(df, cutoff, var = NULL) {
   
   allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
@@ -78,6 +78,7 @@ count_by_group <- function(df, cutoff, var = NULL) {
     arrange(.data[[var]], match(group, c("left", "mixed", "right", "lateralized")))
 }
 
-count_by_group(input, 90, "Diagnostic")
+count_by_group(input, 90, "BD_patient")
 
-
+controls <- input %>% filter(BD_patient =="NO")
+count_by_group(controls, 90)

@@ -330,7 +330,7 @@ scales <- as.data.frame(readxl::read_xlsx("Escalas_clinicas_MadManic.xlsx", shee
                                           na=c("#N/A", "#N/D")))
 scales[[1]] <- gsub("IE", "IEV", scales[[1]])
 
-meta_cases <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_070526.xlsx", sheet = 1, 
+meta_cases <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_290526.xlsx", sheet = 1, 
                                          col_types="text", na=c("#N/A", "#N/D")))%>%
   mutate(across(
     where(~ n_distinct(., na.rm = TRUE) == 2),
@@ -339,7 +339,7 @@ meta_cases <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_070
   mutate(across(
     where(~ n_distinct(., na.rm = TRUE) == 2),
     as.factor
-  ))%>%
+  ))%>% mutate(Age = as.numeric(Age))%>%
   left_join(scales, by = c("ID" = "ID_complete"))%>%
   mutate(across(starts_with("NUMBER"), 
                 ~ { x <- as.numeric(.)
@@ -351,7 +351,7 @@ meta_cases <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_070
                   x >=11 ~4,
                   TRUE ~ NA_real_
                 ) }))
-
+meta_cases <- subset(meta_cases, is.finite(Age))
 meta_clean <- meta_cases%>%
   filter(rowSums(is.na(.)) < 7) %>% mutate(Age = as.numeric(Age))%>% select(-BD_patient)%>%
   mutate(across(where(is.factor), ~ {  # set all columns that have a level "No" as their reference
@@ -360,13 +360,14 @@ meta_clean <- meta_cases%>%
 
 ###Load EHI and compute LQ
 
-ehi_cases <-  as.data.frame(readxl::read_xlsx("../input_prep/cases_EHI_070526.xlsx", sheet = 2, 
+ehi_cases <-  as.data.frame(readxl::read_xlsx("../Part1_input_prep/cases_EHI_290526.xlsx", sheet = 2, 
                                               col_types="text", na="#N/A"))[,1:13]%>%
   mutate(across(-1, as.numeric))
 
 cols <- c("ID", "Item1", "Item2", "Item3", "Item4", "Item5", "Item6", "Item7",
           "Item8", "Item9", "Item10", "Item11", "Item12")
 colnames(ehi_cases) <- cols
+
 LQ_cases <- calculate_LQ_EHI(ehi_cases)
 all_df <- meta_clean %>% left_join(LQ_cases, by="ID") 
 

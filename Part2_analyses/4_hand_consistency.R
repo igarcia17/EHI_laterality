@@ -14,7 +14,7 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
   )) %>%
   mutate(across(-c(ID, Diagnostic),~ if (!is.factor(.)) as.numeric(.) else .)) %>% 
   mutate(Diagnostic = factor(Diagnostic))
-
+input <- subset(input, is.finite(Age))
 lat_df <- input %>% rowwise() %>%
   mutate(consistency_sd = 
            (sd(c_across(7:16))),

@@ -75,7 +75,7 @@ for (i in seq_along(ks)){
 plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
-best_k <- ks[which.min(rmse)] #8 es la mejor k con 0.2 missing values  
+best_k <- ks[which.min(rmse)] #12 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)

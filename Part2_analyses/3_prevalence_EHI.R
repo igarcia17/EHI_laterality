@@ -16,7 +16,9 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
     -c(ID, Diagnostic),                    
     ~ if (!is.factor(.)) as.numeric(.) else .
   )) %>% mutate(Diagnostic = factor(Diagnostic))
-  
+
+input <- subset(input, is.finite(Age))
+
 count_by_group <- function(df, cutoff, var = NULL) {
   allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
   # función interna para crear grupos de uso de mano segun un umbral, ya sea dependiendo de una variable o no
@@ -85,7 +87,7 @@ count_by_group <- function(df, cutoff, var = NULL) {
 }
 
 #Contar uso de manos en general, comparando entre casos y controles, sin match por edad
-count_by_group(input, cutoff = 40, var = "BD_patient")
+count_by_group(input, cutoff = 40, var = "Sex")
 
 ###Contar uso de manos en hombres y en mujeres, comparando entre casos y controles, sin match por edad
 females <- input%>%  filter(Sex=="MUJER")%>%droplevels()
