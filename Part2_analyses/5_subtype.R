@@ -1,4 +1,4 @@
-#Igual que el script 3_prevalence.R, funcion para ocntar por grupos
+#Igual que el script 3_prevalence.R, funcion para contar por grupos
 
 library(dplyr)
 library(ggplot2)
@@ -17,10 +17,16 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
     -c(ID, Diagnostic),                    
     ~ if (!is.factor(.)) as.numeric(.) else .
   )) %>% mutate(Diagnostic = factor(Diagnostic))
-input <- subset(input, is.finite(Age))
+input_clean <- subset(input, is.finite(Age))
+set.seed(13)
+match_obj <- MatchIt::matchit(BD_patient ~ Age, 
+                              data = input_clean, 
+                              method = "nearest", 
+                              ratio = 1)
+balanced_age <- MatchIt::match.data(match_obj)
 count_by_group <- function(df, cutoff, var = NULL) {
   
-  allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
+  allowed_vars <- c("Sex", "BD_patient", "Diagnostic", "group_Age")
   # función interna para crear grupos
   make_groups <- function(data) {
     data %>%
@@ -78,7 +84,32 @@ count_by_group <- function(df, cutoff, var = NULL) {
     arrange(.data[[var]], match(group, c("left", "mixed", "right", "lateralized")))
 }
 
+#With all individuals
 count_by_group(input, 90, "BD_patient")
 
-controls <- input %>% filter(BD_patient =="NO")
-count_by_group(controls, 90)
+#With matched-age controls
+count_by_group(balanced_age, 90)
+count_by_group(balanced_age, 90, "BD_patient")
+
+#Only for controls
+controls <- input %>% filter(BD_patient =="NO") %>% mutate(group_Age = if_else(Age >= 40, "OLD", "YOUNG"),
+                                                           group_Age = factor(group_Age, levels = c("YOUNG", "OLD")))
+summary(controls)
+count_by_group(controls, 0, "Sex")
+count_by_group(controls, 90, "group_Age")
+
+#Withing BD
+onlyfem <- balanced_age %>% filter(Sex=="MUJER")
+onlymale <- balanced_age%>% filter(Sex=="HOMBRE")
+count_by_group(onlyfem, 90)
+count_by_group(onlyfem, 90, "BD_patient")
+
+count_by_group(onlymale, 90)
+count_by_group(onlymale, 90, "BD_patient")
+
+
+
+
+
+
+

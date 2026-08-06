@@ -1,3 +1,4 @@
+# Calcular diferencias ajustadas por covariables en uso de zurdera
 library(dplyr)
 library(ggplot2)
 
@@ -55,7 +56,40 @@ df <- balanced_age %>%mutate(
   LAT_90 = factor(if_else(
     Score10items >= -90 & Score10items <= 90,"Non-lateral","Lateral")))
 
+controls <- input_clean %>% filter(BD_patient =="NO") %>% 
+  mutate(group_Age = if_else(Age >= 40, "OLD", "YOUNG"),group_Age = factor(group_Age, levels = c("YOUNG", "OLD")))%>%
+  mutate(NRH_0  = factor(if_else(Score10items <= 0,  "NRH", "RH"), levels = c("RH", "NRH")),
+         NRH_40 = factor(if_else(Score10items <= 40, "NRH", "RH"),levels = c("RH", "NRH")),
+         NRH_60 = factor(if_else(Score10items <= 60, "NRH", "RH"),levels = c("RH", "NRH")),
+         NRH_80 = factor(if_else(Score10items <= 80, "NRH", "RH"),levels = c("RH", "NRH")),
+         NRH_90 = factor(if_else(Score10items <= 90, "NRH", "RH"),levels = c("RH", "NRH")),
+         LAT_0  = factor(if_else(Score10items >= 0  & Score10items <= 0,"Non-lateral","Lateral")),
+         LAT_40 = factor(if_else(Score10items >= -40 & Score10items <= 40,"Non-lateral","Lateral")),
+         LAT_60 = factor(if_else(Score10items >= -60 & Score10items <= 60,"Non-lateral","Lateral")),
+         LAT_80 = factor(if_else(Score10items >= -80 & Score10items <= 80,"Non-lateral", "Lateral" )),
+         LAT_90 = factor(if_else(Score10items >= -90 & Score10items <= 90,"Non-lateral","Lateral")))
+
 ###Models
+
+#Differences in control group
+summary(glm(NRH_0 ~  Age + Sex, data=controls, family = "binomial"))
+summary(glm(NRH_40 ~  Age + Sex, data=controls, family = "binomial"))
+summary(glm(NRH_60 ~  Age + Sex, data=controls, family = "binomial")) ##Sex
+summary(glm(NRH_80 ~  Age + Sex, data=controls, family = "binomial"))##Sex
+summary(glm(NRH_90 ~  Age + Sex, data=controls, family = "binomial"))##Sex + BD + Age -> there are strong changes in NRH with age sex and BD status
+
+#regarding NRH or lat
+summary(glm(NRH_0 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
+summary(glm(NRH_40 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
+summary(glm(NRH_60 ~ BD_patient + Age + Sex, data=df, family = "binomial")) ##Sex
+summary(glm(NRH_80 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex
+summary(glm(NRH_90 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex + BD + Age -> there are strong changes in NRH with age sex and BD status
+summary(glm(LAT_0 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
+summary(glm(LAT_40 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
+summary(glm(LAT_60 ~ BD_patient + Age + Sex, data=df, family = "binomial"))#Some in BD, some in Sex
+summary(glm(LAT_80 ~ BD_patient + Age + Sex, data=df, family = "binomial")) ##Sex
+summary(glm(LAT_90 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex + BD + Age -> there are strong changes in lateralization with age sex and BD status
+
 
 summary(glm(BD_patient ~ Age + Sex + NRH_0, data=df, family = "binomial"))
 summary(glm(BD_patient ~ Age + Sex + NRH_40, data=df, family = "binomial"))
@@ -86,17 +120,6 @@ summary(glm(BD_patient ~ Age + Sex + Score10items, data=df, family = "binomial")
 summary(glm(BD_patient ~ Age + Sex * Score10items, data=df, family = "binomial"))
 
 
-#regarding NRH or lat
-summary(glm(NRH_0 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
-summary(glm(NRH_40 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
-summary(glm(NRH_60 ~ BD_patient + Age + Sex, data=df, family = "binomial")) ##Sex
-summary(glm(NRH_80 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex
-summary(glm(NRH_90 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex + BD + Age -> there are strong changes in NRH with age sex and BD status
-summary(glm(LAT_0 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
-summary(glm(LAT_40 ~ BD_patient + Age + Sex, data=df, family = "binomial"))
-summary(glm(LAT_60 ~ BD_patient + Age + Sex, data=df, family = "binomial"))#Some in BD, some in Sex
-summary(glm(LAT_80 ~ BD_patient + Age + Sex, data=df, family = "binomial")) ##Sex
-summary(glm(LAT_90 ~ BD_patient + Age + Sex, data=df, family = "binomial"))##Sex + BD + Age -> there are strong changes in lateralization with age sex and BD status
 
 
 females_clean <- df%>%
