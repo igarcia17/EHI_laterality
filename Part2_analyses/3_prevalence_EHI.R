@@ -1,6 +1,7 @@
 library(dplyr)
 library(ggplot2)
 #Para funciones basicas de prevalencia y hacer un subset de individuos age-matched
+#Para graficos para la presentacion del congreso
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
@@ -188,6 +189,37 @@ ggplot(input, aes(x = Score10items, fill = BD_patient)) +
   theme_minimal()
 dev.off()
 
+#Boxplot of hand and foot use
+jpeg("Foot_and_eye_preference.jpeg")
+density_df <- balanced_age %>%
+    filter(
+          (is.na(Item11) | Item11 != 3.5) &
+                (is.na(Item12) | Item12 != 3.5)
+      ) %>%
+    select(BD_patient, Item11, Item12) %>%
+    pivot_longer(
+          cols = c(Item11, Item12),
+          names_to = "Item",
+          values_to = "Score"
+      ) %>%
+    filter(!is.na(Score), !is.na(BD_patient))
+ggplot(density_df,
+            aes(x = Score,
+                             fill = factor(BD_patient),
+                             color = factor(BD_patient))) +
+    geom_density(alpha = 0.3, linewidth = 1, adjust =1.5) +
+    facet_wrap(~ Item) +
+    theme_minimal() +
+    labs(
+          x = "Score",
+          y = "Density",
+          fill = "Group",
+          color = "Group"
+      )
+dev.off()
+
+
+
 females_clean <- balanced_age%>%
   filter(Sex=="MUJER")%>%droplevels()
 males_clean <- balanced_age%>%filter(Sex=="HOMBRE")%>%droplevels()
@@ -199,6 +231,51 @@ count_by_group(females_clean, cutoff=0, var="BD_patient")
 count_by_group(males_clean, cutoff=0, var="BD_patient")  
 
 
+#Age on controls
+age_prop <- all_controls %>%
+  filter(
+    !is.na(Age),
+    !is.na(Score10items)
+  ) %>%
+  mutate(
+    Age_group = cut(
+      Age,
+      breaks = c(-Inf, 20, 30, 40, 50, 60, 70, 80, Inf),
+      labels = c("≤20", "21–30", "31–40", "41–50",
+                 "51–60", "61–70", "71–80", "≥81")
+    )
+  ) %>%
+  group_by(Age_group) %>%
+  summarise(
+    n_total = n(),
+    n_90 = sum(abs(Score10items) > 90),
+    prop_90 = n_90 / n_total,
+    .groups = "drop"
+  )
 
+ggplot(age_prop, aes(x = Age_group, y = prop_90)) +
+  geom_col(width = 0.8, fill = "#E76F51") +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal() +
+  labs(
+    x = "Age group",
+    y = "Lateralized individuals (%)"
+  )+theme(
+  text = element_text(size = 20)
+)
+
+
+all_controls <- input_clean %>% filter(BD_patient == "NO") %>%droplevels()%>%
+   mutate(
+         lateralized_90 = ifelse(abs(Score10items) > 90, 1, 0),
+         NRH_60 = ifelse(Score10items <= 60, 1, 0)
+     )
+
+m <- glm(lateralized_90 ~ Age, data = all_controls)
+m2 <- glm(NRH_60 ~Age , data = all_controls)
+summary(m)
+summary(m2)
 
 
