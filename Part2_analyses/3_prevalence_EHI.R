@@ -1,10 +1,12 @@
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 #Para funciones basicas de prevalencia y hacer un subset de individuos age-matched
 #Para graficos para la presentacion del congreso
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
+source("../functions.R")
 
 #Load input data
 input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_data_LQ_PLUS_items.xlsx", sheet = 1, 
@@ -15,77 +17,9 @@ input <- as.data.frame(readxl::read_xlsx("../Part1_input_prep/all_samples_all_da
   )) %>%
   mutate(across(
     -c(ID, Diagnostic),                    
-    ~ if (!is.factor(.)) as.numeric(.) else .
-  )) %>% mutate(Diagnostic = factor(Diagnostic))
+    ~ if (!is.factor(.)) as.numeric(.) else .)) %>% mutate(Diagnostic = factor(Diagnostic))
 
 input <- subset(input, is.finite(Age))
-
-count_by_group <- function(df, cutoff, var = NULL) {
-  allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
-  # función interna para crear grupos de uso de mano segun un umbral, ya sea dependiendo de una variable o no
-  make_groups <- function(data) {
-    data %>%
-      mutate(
-        group = case_when(
-          Score10items < -cutoff ~ "left",
-          Score10items >= -cutoff & Score10items <= cutoff ~ "mixed",
-          Score10items > cutoff ~ "right"
-        ))}
-  
-  # Si no se especifica ninguna variable:
-  if (is.null(var) || var == "None") {
-    df2 <- make_groups(df)
-    return(
-      df2 %>%
-        group_by(group) %>%
-        summarise(n = n(), .groups = "drop") %>%
-        # añadir lateralized
-        bind_rows(
-          df2 %>%
-            filter(group %in% c("left", "right")) %>%
-            summarise(n = n()) %>%
-            mutate(group = "lateralized")
-        ) %>%
-        mutate(
-          total = sum(n[group != "lateralized"]),
-          perc = 100 * n / total,
-          label = sprintf("%d (%.2f%%)", n, perc)
-        ) %>%
-        select(group, label) %>%
-        arrange(match(group, c("left", "mixed", "right", "lateralized")))
-    )}
-  
-  # Si se quiere agrupar por una variable de la lista de vars permitidas
-  if (!(var %in% allowed_vars)) {
-    stop("var debe ser una de: Sex, BD_patient, Diagnostic o NULL/None") }
-  
-  df2 <- make_groups(df)
-  res <- df2 %>%
-    group_by(group, .data[[var]]) %>%
-    summarise(n = n(), .groups = "drop") %>%
-    group_by(.data[[var]]) %>%
-    mutate(
-      total_var = sum(n),
-      perc = 100 * n / total_var,
-      label = sprintf("%d (%.2f%%)", n, perc)
-    ) %>%ungroup()
-  # añadir lateralized por cada nivel de var
-  lateralized <- df2 %>%
-    filter(group %in% c("left", "right")) %>%
-    group_by(.data[[var]]) %>%
-    summarise(n = n(), .groups = "drop") %>%
-    group_by(.data[[var]]) %>%
-    mutate(
-      total_var = sum(res$n[res[[var]] == .data[[var]]], na.rm = TRUE),
-      perc = 100 * n / total_var,
-      group = "lateralized",
-      label = sprintf("%d (%.2f%%)", n, perc)
-    ) %>%
-    select(group, all_of(var), label)
-  
-  bind_rows(res, lateralized) %>%
-    arrange(.data[[var]], match(group, c("left", "mixed", "right", "lateralized")))
-}
 
 #Contar uso de manos en general, comparando entre casos y controles, sin match por edad
 count_by_group(input, cutoff = 40, var = "Sex")
@@ -94,9 +28,12 @@ count_by_group(input, cutoff = 40, var = "Sex")
 females <- input%>%  filter(Sex=="MUJER")%>%droplevels()
 males <- input%>%filter(Sex=="HOMBRE")%>%droplevels()
 
-count_by_group(females, cutoff=90, var="BD_patient")
-count_by_group(males, cutoff=90, var="BD_patient")  
-  
+count_by_group(females, cutoff=60, var="BD_patient")
+count_by_group(males, cutoff=60, var="BD_patient")  
+
+#Proportion tests
+prop_test_by_group(input, cutoff = 0, var = "Sex")
+
 #Taking Age into play
 jpeg(filename='../Age_in_BD_patients.jpeg')
 ggplot(
@@ -160,6 +97,7 @@ ggplot(balanced_age, aes(x = Score10items)) +
   ) +
   theme_minimal()
 dev.off()
+
 #Separated histogram
 jpeg("Before_balanced_By_BD_all_samples_balanced_age_LQ_dist.jpeg")
 ggplot(input, aes(x = Score10items, fill = BD_patient)) +
@@ -197,7 +135,7 @@ density_df <- balanced_age %>%
                 (is.na(Item12) | Item12 != 3.5)
       ) %>%
     select(BD_patient, Item11, Item12) %>%
-    pivot_longer(
+  tidyr::pivot_longer(
           cols = c(Item11, Item12),
           names_to = "Item",
           values_to = "Score"
@@ -218,8 +156,15 @@ ggplot(density_df,
       )
 dev.off()
 
+input <- create_laterality_vars(input)
+balanced_age <- create_laterality_vars(balanced_age)
+m_nrh <- glm(NRH_0 ~ BD_patient+Age+Sex, data = balanced_age, family=binomial)
+m_lat <- glm(LAT_90 ~BD_patient+Age+ Sex, data= balanced_age, family=binomial)
+summary(m_lat)
 
 
+
+#Tabla 3
 females_clean <- balanced_age%>%
   filter(Sex=="MUJER")%>%droplevels()
 males_clean <- balanced_age%>%filter(Sex=="HOMBRE")%>%droplevels()
@@ -230,8 +175,13 @@ count_by_group(males_clean, cutoff=0)
 count_by_group(females_clean, cutoff=0, var="BD_patient")
 count_by_group(males_clean, cutoff=0, var="BD_patient")  
 
-
 #Age on controls
+all_controls <- input_clean %>% filter(BD_patient == "NO") %>%droplevels()%>%
+  mutate(
+    lateralized_90 = ifelse(abs(Score10items) > 90, 1, 0),
+    NRH_60 = ifelse(Score10items <= 60, 1, 0)
+  )
+
 age_prop <- all_controls %>%
   filter(
     !is.na(Age),
@@ -266,15 +216,11 @@ ggplot(age_prop, aes(x = Age_group, y = prop_90)) +
   text = element_text(size = 20)
 )
 
+#Aqui se ve que la edad influencia mucho en la lateralizacion cuando 90,
+# y realmente en NRH no muchisimo 0.086
 
-all_controls <- input_clean %>% filter(BD_patient == "NO") %>%droplevels()%>%
-   mutate(
-         lateralized_90 = ifelse(abs(Score10items) > 90, 1, 0),
-         NRH_60 = ifelse(Score10items <= 60, 1, 0)
-     )
-
-m <- glm(lateralized_90 ~ Age, data = all_controls)
-m2 <- glm(NRH_60 ~Age , data = all_controls)
+m <- glm(lateralized_90 ~ Age+Sex, data = all_controls)
+m2 <- glm(NRH_60 ~Age +Sex, data = all_controls)
 summary(m)
 summary(m2)
 

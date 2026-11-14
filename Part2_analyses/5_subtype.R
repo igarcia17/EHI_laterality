@@ -1,4 +1,5 @@
 #Igual que el script 3_prevalence.R, funcion para contar por grupos
+#Con los porcentajes bien y tal para que sea más fácil ponerlo en el Excel
 
 library(dplyr)
 library(ggplot2)
@@ -98,7 +99,7 @@ summary(controls)
 count_by_group(controls, 0, "Sex")
 count_by_group(controls, 90, "group_Age")
 
-#Withing BD
+#Within BD
 onlyfem <- balanced_age %>% filter(Sex=="MUJER")
 onlymale <- balanced_age%>% filter(Sex=="HOMBRE")
 count_by_group(onlyfem, 90)
@@ -108,8 +109,8 @@ count_by_group(onlymale, 90)
 count_by_group(onlymale, 90, "BD_patient")
 
 
-
-
-
+####Diagnostic
+cases <- balanced_age %>% filter(Diagnostic != "NO") %>% droplevels()
+count_by_group(cases, 60, "Diagnostic")
 
 

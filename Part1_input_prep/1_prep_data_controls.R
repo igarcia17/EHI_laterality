@@ -15,22 +15,22 @@ rm(list = ls())
 
 controlsF <- "Datos_cuestionarios_finales_para_lateralidad.xlsx"
 
-c_1 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 1, 
+c_1 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 1, range = readxl::cell_cols(1:23),
                                          col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
-c_2  <- as.data.frame(readxl::read_xlsx(controlsF, sheet =2, 
+c_2  <- as.data.frame(readxl::read_xlsx(controlsF, sheet =2, range = readxl::cell_cols(1:23),
                                         col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
-c_3  <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 3, 
+c_3  <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 3, range = readxl::cell_cols(1:23),
                                         col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
-c_4 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 4, 
+c_4 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 4, range = readxl::cell_cols(1:23),
                                    col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
-c_5 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 5, 
+c_5 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 5, range = readxl::cell_cols(1:23),
                                        col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
-c_6 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 6, 
+c_6 <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 6, range = readxl::cell_cols(1:23),
                                        col_types="text", na="#N/A")) %>%
   select(ID, SEXO, Edad, `Diagnóstico psiquiátrico propio`, `Detalles diagnóstico`)
 
@@ -45,10 +45,10 @@ ControlsCBMSO <- rbind(c_1, c_2, c_3, c_3, c_4, c_5, c_6)%>%
 
 cases <- ControlsCBMSO%>%
   filter(str_detect(`Detalles diagnóstico`, "BIPOLAR|TB|TAB|BD|BIPOILAR|ESQUIZOAFECTIVO"))
-controls <- ControlsCBMSO%>%
-  filter(!str_detect(`Detalles diagnóstico`, "BIPOLAR|TB|TAB|BD|BIPOILAR|ESQUIZOAFECTIVO"))%>%
-  filter(!str_detect(`Detalles diagnóstico`, "AUTISMO|OBSESIVO|AUTISTA|ESQUIZOF|PERSONALIDAD|TEA|TLP|GRAVE|PSICOT|MAYOR|BOURCAUT"))%>%
-  distinct(ID, .keep_all = TRUE)
+#controls <- ControlsCBMSO%>%
+ # filter(!str_detect(`Detalles diagnóstico`, "BIPOLAR|TB|TAB|BD|BIPOILAR|ESQUIZOAFECTIVO"))%>%
+#  filter(!str_detect(`Detalles diagnóstico`, "AUTISMO|OBSESIVO|AUTISTA|ESQUIZOF|PERSONALIDAD|TEA|TLP|GRAVE|PSICOT|MAYOR|BOURCAUT"))%>%
+ # distinct(ID, .keep_all = TRUE)
 controls_clean <- ControlsCBMSO%>%
   filter(`Diagnóstico psiquiátrico propio` == "NO")%>%
   filter(`Detalles diagnóstico`=="NO")%>%
@@ -63,15 +63,15 @@ edi_sheet <- as.data.frame(readxl::read_xlsx(controlsF, sheet = 7,
 
 ehi_cases <- edi_sheet %>%
   filter(ID %in% cases$ID)
-ehi_controls <- edi_sheet %>%
-  filter(ID %in% controls$ID)%>%
-  distinct(ID, .keep_all = TRUE)
+#ehi_controls <- edi_sheet %>%
+ # filter(ID %in% controls$ID)%>%
+#  distinct(ID, .keep_all = TRUE)
 ehi_controls_clean <- edi_sheet%>%
   filter(ID %in% controls_clean$ID)%>%
   distinct(ID, .keep_all = TRUE)
 
 cases <- cases %>% filter(ID %in%ehi_cases$ID)
-controls <- controls%>%filter(ID %in% ehi_controls$ID)
+#controls <- controls%>%filter(ID %in% ehi_controls$ID)
 controls_clean<- controls_clean %>% filter(ID %in% ehi_controls_clean$ID)
 
 
@@ -101,8 +101,8 @@ data_cases <- cases_madmanic %>%
 meta_cols <- c("ID", "Sex", "Age", "BD_patient", "Diagnostic")
 colnames(meta_cases) <- meta_cols
 colnames(cases) <- meta_cols
-colnames(controls) <- meta_cols
-controls$BD_patient <- "NO"
+#colnames(controls) <- meta_cols
+#controls$BD_patient <- "NO"
 colnames(controls_clean)<- meta_cols
 
 Cases_all <- rbind(meta_cases, cases)
@@ -122,13 +122,13 @@ Cases_all <- Cases_all%>%
   mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
   select(-Diagnostic_new)
 
-controls <- controls %>%
-  left_join(
-    reference_diagnostic_controls %>% select(ID, Diagnostic_new = Diagnostic), 
-    by = "ID"
-  ) %>%
-  mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
-  select(-Diagnostic_new)
+#controls <- controls %>%
+ # left_join(
+  #  reference_diagnostic_controls %>% select(ID, Diagnostic_new = Diagnostic), 
+   # by = "ID"
+#  ) %>%
+ # mutate(Diagnostic = coalesce(Diagnostic_new, Diagnostic)) %>%
+  #select(-Diagnostic_new)
 
 controls_clean <- controls_clean%>%
   left_join(
@@ -139,6 +139,27 @@ controls_clean <- controls_clean%>%
   select(-Diagnostic_new)
 
 #Filter out those with no age and no sex
+#Uniform columns
+Cases_all <- Cases_all %>%
+  mutate(
+    # Limpiamos espacios sobrantes al inicio/final y pasamos a mayúsculas por seguridad
+    diag_clean = str_to_upper(str_trim(Diagnostic)),
+    
+    Diagnostic = case_when(
+      # 1. Cualquier cosa que empiece por BD-I (pero NO BD-II), TB-I o TB I (incluye "+ ALDA")
+      str_detect(diag_clean, "^(BD-I|TB[- ]?I)\\b") ~ "BD-I",
+      
+      # 2. Cualquier cosa que empiece por BD-II, TB-II o TB II
+      str_detect(diag_clean, "^(BD-II|TB[- ]?II)\\b") ~ "BD-II",
+      
+      # 3. SZAFF exacto
+      diag_clean == "SZAFF" ~ "SZAFF",
+      
+      # 4. Todo lo demás ("BIPOLAR", el texto largo de esclerosis, NAs, etc.) pasa a UNKNOWN
+      TRUE ~ "UNKNOWN"
+    )
+  ) %>%
+  select(-diag_clean) # Borramos la columna temporal
 Cases_all <- Cases_all %>% 
   mutate(
     Age = as.numeric(Age)
@@ -147,14 +168,14 @@ Cases_all <- Cases_all %>%
     Sex %in% c("HOMBRE", "MUJER"),
     Age >= 10 & Age <= 100
   )
-controls <- controls %>% 
-  mutate(
-    Age = as.numeric(Age)
-  ) %>%
-  filter(
-    Sex %in% c("HOMBRE", "MUJER"),
-    Age >= 10 & Age <= 100
-  )
+#controls <- controls %>% 
+ # mutate(
+#    Age = as.numeric(Age)
+ # ) %>%
+  #filter(
+   # Sex %in% c("HOMBRE", "MUJER"),
+    #Age >= 10 & Age <= 100
+#  )
 controls_clean <- controls_clean %>% 
   mutate(
     Age = as.numeric(Age)
@@ -169,20 +190,20 @@ Cases_all_ehi <- Cases_all_ehi %>%
 Cases_all <- Cases_all %>% 
   filter(ID %in% Cases_all_ehi$Genetic_code)
 
-ehi_controls <- ehi_controls %>% filter(ID %in% controls$ID)
-controls <- controls %>% filter(ID %in% ehi_controls$ID)
+#ehi_controls <- ehi_controls %>% filter(ID %in% controls$ID)
+#controls <- controls %>% filter(ID %in% ehi_controls$ID)
 
 ehi_controls_clean <- ehi_controls_clean %>% filter(ID %in% controls_clean$ID)
 controls_clean <- controls_clean %>% filter(ID %in% ehi_controls_clean$ID)
 
 
 ###SAVE an EXCEL file for controls
-wb <- createWorkbook()
-addWorksheet(wb, "meta_controls")
-writeData(wb, "meta_controls", controls)
-addWorksheet(wb, "EHI_controls")
-writeData(wb, "EHI_controls", ehi_controls)
-saveWorkbook(wb, "controls_EHI_290526.xlsx", overwrite = TRUE)
+#wb <- createWorkbook()
+#addWorksheet(wb, "meta_controls")
+#writeData(wb, "meta_controls", controls)
+#addWorksheet(wb, "EHI_controls")
+#writeData(wb, "EHI_controls", ehi_controls)
+#saveWorkbook(wb, "controls_EHI_290526.xlsx", overwrite = TRUE)
 
 #SAVE an EXCEL file for cases
 wb <- createWorkbook()
@@ -190,7 +211,7 @@ addWorksheet(wb, "meta_cases")
 writeData(wb, "meta_cases", Cases_all)
 addWorksheet(wb, "EHI_cases")
 writeData(wb, "EHI_cases", Cases_all_ehi)
-saveWorkbook(wb, "cases_EHI_290526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "cases_EHI_131126.xlsx", overwrite = TRUE)
 
 ###SAVE an EXCEL file for clean controls
 wb <- createWorkbook()
@@ -198,7 +219,7 @@ addWorksheet(wb, "meta_controls_clean")
 writeData(wb, "meta_controls_clean", controls_clean)
 addWorksheet(wb, "EHI_controls_clean")
 writeData(wb, "EHI_controls_clean", ehi_controls_clean)
-saveWorkbook(wb, "controls_clean_EHI_290526.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "controls_clean_EHI_131126.xlsx", overwrite = TRUE)
 
 ###Please manually assess Diagnostic uniformity and that everything is OK
 

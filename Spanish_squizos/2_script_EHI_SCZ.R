@@ -79,10 +79,8 @@ association_matrix <- function(df) {
 }
 ###### Load input
 
-
-
-casesF <- "../Part1_input_prep/cases_EHI_190526.xlsx"
-controlsF <- "../Part1_input_prep/controls_clean_EHI_190526.xlsx"
+casesF <- "../Part1_input_prep/cases_EHI_131126.xlsx"
+controlsF <- "../Part1_input_prep/controls_clean_EHI_131126.xlsx"
 sczF <- "BNADN_EHI_SCZ_210526.xlsx"
 
 cases <- as.data.frame(readxl::read_xlsx(casesF, sheet = 1, 
@@ -156,7 +154,7 @@ plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
 best_index <- which.min(rmse)
-best_k <- ks[best_index] #4 es la mejor k con 0.2 missing values  
+best_k <- ks[best_index] #10 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)

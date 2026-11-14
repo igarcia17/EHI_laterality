@@ -2,7 +2,6 @@
 # as well as imputing missing values in the EHI through KNN
 # different correlation graphs and more harmonization of data
 
-
 library(dplyr)
 library(tidyr)
 library(effsize)
@@ -18,8 +17,8 @@ library(pheatmap)
 workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
-casesF <- "cases_EHI_290526.xlsx"
-controlsF <- "controls_clean_EHI_290526.xlsx"
+casesF <- "cases_EHI_131126.xlsx"
+controlsF <- "controls_clean_EHI_131126.xlsx"
 
 cases <- as.data.frame(readxl::read_xlsx(casesF, sheet = 1, 
                                               col_types="text", na="#N/A"))%>%
@@ -75,15 +74,16 @@ for (i in seq_along(ks)){
 plot(ks,rmse,type="b",pch=1,
      xlab="k",ylab="Imputation RMSE",
      main = "Selecting K via RMSE")
-best_k <- ks[which.min(rmse)] #12 es la mejor k con 0.2 missing values  
+best_k <- ks[which.min(rmse)] #8 es la mejor k con 0.2 missing values  
 
 #imputation
 all_ehi_imputed <- kNN(all_ehi,k=best_k,imp_var=FALSE)
 
 ehi_items_corr <- cor(all_ehi_imputed[,2:11], use = "complete.obs")
 all_items_cor <- cor(all_ehi_imputed[,2:13], use= "complete.obs")
-
-jpeg("../EHI_items_correlation.jpeg")
+dev.off()
+dev.off()
+jpeg("../images/EHI_items_correlation.jpeg")
 pheatmap(ehi_items_corr, 
          display_numbers = TRUE,       
          number_format = "%.2f",       
@@ -97,7 +97,7 @@ pheatmap(ehi_items_corr,
 )
 dev.off()
 
-jpeg("../all_items_correlation.jpeg")
+jpeg("../images/all_items_correlation.jpeg")
 pheatmap(all_items_cor, 
          display_numbers = TRUE,       
          number_format = "%.2f",       
@@ -173,7 +173,7 @@ ehi_items_to_LQ[1, ] <- ehi_items_to_LQ[1, ] * -1
 new_colors <- colorRampPalette(c("slateblue2", "lightyellow", "lightsalmon"))(100)
 new_breaks <- seq(0, 1, length.out = 101)
 
-jpeg("../LQ_to_EHI_items_correlation.jpeg")
+jpeg("../images/LQ_to_EHI_items_correlation.jpeg")
 pheatmap(ehi_items_to_LQ, 
          display_numbers = TRUE,       
          number_format = "%.2f",       
@@ -191,7 +191,7 @@ dev.off()
 other_items_to_LQ <- cor(import_df[,c(2,17,18)], use = "complete.obs")
 other_items_to_LQ[, 1] <- other_items_to_LQ[, 1] * -1
 other_items_to_LQ[1, ] <- other_items_to_LQ[1, ] * -1
-jpeg("../LQ_to_eye_foot_items_correlation.jpeg")
+jpeg("../images/LQ_to_eye_foot_items_correlation.jpeg")
 pheatmap(other_items_to_LQ, 
          display_numbers = TRUE,       
          number_format = "%.2f",       
@@ -244,15 +244,13 @@ association_matrix <- function(df) {
 M <- association_matrix(all_LQ[,2:6])
 cols <- RColorBrewer::brewer.pal(n =9, name = "YlGnBu")
 
-png(filename="../Correlation_LQ_SEX_AGE_BD.png")
+png(filename="../images/Correlation_LQ_SEX_AGE_BD.png")
 pheatmap(M*100,
          display_numbers = T,
          cluster_rows = F, cluster_cols = F, fontsize_number = 12,
          color = cols[1:6], angle_col = 315,
          title = "Correlation (%)")
 dev.off()
-
-
 
 
 #All LQ scores
