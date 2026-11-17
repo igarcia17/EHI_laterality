@@ -5,7 +5,8 @@ workingD <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(workingD))
 rm(list = ls())
 ###Functions
-count_by_group <- function(df, cutoff, var = NULL) {
+source("../functions.R")
+count__by_group <- function(df, cutoff, var = NULL) {
   allowed_vars <- c("Sex", "BD_patient", "Diagnostic")
   # función interna para crear grupos
   make_groups <- function(data) {

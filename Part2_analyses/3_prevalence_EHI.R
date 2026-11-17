@@ -162,18 +162,21 @@ m_nrh <- glm(NRH_0 ~ BD_patient+Age+Sex, data = balanced_age, family=binomial)
 m_lat <- glm(LAT_90 ~BD_patient+Age+ Sex, data= balanced_age, family=binomial)
 summary(m_lat)
 
-
-
 #Tabla 3
 females_clean <- balanced_age%>%
   filter(Sex=="MUJER")%>%droplevels()
 males_clean <- balanced_age%>%filter(Sex=="HOMBRE")%>%droplevels()
 
 count_by_group(females_clean, cutoff=0)
-count_by_group(males_clean, cutoff=0)  
+count_by_group(males_clean, cutoff=0)
 
 count_by_group(females_clean, cutoff=0, var="BD_patient")
 count_by_group(males_clean, cutoff=0, var="BD_patient")  
+
+prop_test_by_group(females_clean, cutoff = 0, var="BD_patient")
+
+summary(glm(NRH_0 ~ BD_patient+Age, data = females_clean, family=binomial))
+summary(glm(LAT_90 ~BD_patient+Age, data= males_clean, family=binomial))
 
 #Age on controls
 all_controls <- input_clean %>% filter(BD_patient == "NO") %>%droplevels()%>%
